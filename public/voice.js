@@ -381,15 +381,44 @@ export class VoiceMesh {
    * the evening, a frozen thumbnail does not.
    */
   applyBufferPressure(bufferedAhead, playing) {
-    if (!this.camOn || !playing) return;
-    const bitrate =
-      bufferedAhead < 5 ? 0 : bufferedAhead < 10 ? 60_000 : CAM_PLAYING.bitrate;
+    if (!playing || !this.onMesh) return;
+
+    // Under five seconds of runway, stop receiving video altogether. Voice
+    // survives — a frozen thumbnail is a far smaller loss than a stalled film.
+    this.setIncomingVideo(bufferedAhead >= 5);
+    this.hooks.onThrottle?.(bufferedAhead < 5);
+  }
+
+  /**
+   * Stop or resume *incoming* video across every peer.
+   *
+   * This used to walk pc.getSenders() and cap the outgoing camera, which
+   * could never have worked: a draining film buffer is a shortage on this
+   * client's DOWNLINK, and throttling its upload frees nothing. Flipping the
+   * transceiver direction is what actually stops the bytes arriving.
+   *
+   * Only ever called for a buffered source — a shared screen reports an
+   * effectively infinite buffer, so a live stream never gets switched off
+   * underneath the person watching it.
+   */
+  setIncomingVideo(enabled) {
+    if (this.incomingVideo === enabled) return;
+    this.incomingVideo = enabled;
+
     for (const { pc } of this.peers.values()) {
-      for (const sender of pc.getSenders()) {
-        if (sender.track?.kind === 'video') this.capSender(sender, bitrate || 1000);
+      for (const tr of pc.getTransceivers()) {
+        if (tr.receiver?.track?.kind !== 'video') continue;
+        const now = tr.direction;
+        // Preserve whatever this client is sending; only drop the receive half.
+        const next = enabled
+          ? now === 'sendonly' ? 'sendrecv' : now === 'inactive' ? 'recvonly' : now
+          : now === 'sendrecv' ? 'sendonly' : now === 'recvonly' ? 'inactive' : now;
+        if (next === now) continue;
+        try {
+          tr.direction = next; // fires negotiationneeded; perfect negotiation handles it
+        } catch {}
       }
     }
-    this.hooks.onThrottle?.(bufferedAhead < 10);
   }
 
   // ----------------------------------------------------------------- peers

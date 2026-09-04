@@ -146,7 +146,7 @@ function setupVoice() {
     },
 
     onThrottle: (tight) => {
-      if (tight) showBand('Cameras dimmed — protecting playback', '');
+      if (tight) showBand('Video paused — protecting playback', 'voice still on');
       else if (roomState.phase !== 'preparing') hideBand();
     },
 
