@@ -9,6 +9,12 @@
     "binding": "ASSETS"
   },
 
+  // Create it once with:  npx wrangler r2 bucket create watch-together-media
+  // R2 has zero egress fees at every tier; the free limit is 10 GB stored.
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "watch-together-media" }
+  ],
+
   "durable_objects": {
     "bindings": [
       { "name": "ROOM", "class_name": "Room" }
