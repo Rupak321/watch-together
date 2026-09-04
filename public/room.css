@@ -320,8 +320,8 @@ body { overflow-x: hidden; }
   left: 0; right: 0; bottom: 0;
   z-index: 7;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   padding: 42px 14px 14px;
   background: linear-gradient(transparent, rgba(11, 9, 8, .88));
   opacity: 0;
@@ -331,6 +331,62 @@ body { overflow-x: hidden; }
 .room[data-mode="house"] .stage-wrap.awake .controls { opacity: 1; pointer-events: auto; }
 .room[data-mode="house"] .stage-wrap.awake { cursor: default; }
 .room[data-mode="house"] .stage-wrap { cursor: none; }
+
+.ctrl-row { display: flex; align-items: center; gap: 8px; }
+
+/* ------------------------------------------------------------- seek bar */
+
+.scrub { position: relative; padding: 7px 0; cursor: pointer; }
+.scrub-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(242, 237, 228, .18);
+  transition: height 140ms var(--ease);
+}
+.scrub:hover .scrub-track, .scrub:focus-visible .scrub-track { height: 7px; }
+
+.scrub-buffer, .scrub-played {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+}
+.scrub-buffer { background: rgba(242, 237, 228, .22); width: 0; }
+.scrub-played { background: var(--lamp); width: 0; }
+
+.scrub-knob {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--lamp);
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+.scrub:hover .scrub-knob, .scrub:focus-visible .scrub-knob { opacity: 1; }
+
+/* Nobody can control playback here, so do not offer a handle that does nothing. */
+.scrub[aria-disabled="true"] { cursor: default; }
+.scrub[aria-disabled="true"] .scrub-knob { display: none; }
+
+.scrub-hint {
+  position: absolute;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: rgba(11, 9, 8, .92);
+  border: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
 
 .controls .clock {
   font-family: var(--mono);

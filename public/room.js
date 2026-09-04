@@ -579,9 +579,71 @@ function tick() {
 
 function renderPosition() {
   if (!source) return;
-  el('posLabel').textContent = fmt(source.getCurrentTime());
-  el('durLabel').textContent = fmt(source.getDuration ? source.getDuration() : 0);
+  const at = source.getCurrentTime();
+  const dur = source.getDuration ? source.getDuration() : 0;
+  el('posLabel').textContent = fmt(at);
+  el('durLabel').textContent = fmt(dur);
+
+  // A live stream has no length to scrub through.
+  const seekable = dur > 0 && !source.isLive;
+  el('scrub').style.visibility = seekable ? 'visible' : 'hidden';
+  if (!seekable) return;
+
+  const pct = Math.max(0, Math.min(100, (at / dur) * 100));
+  el('scrubPlayed').style.width = `${pct}%`;
+  el('scrubKnob').style.left = `${pct}%`;
+  el('scrub').setAttribute('aria-valuenow', String(Math.round(pct)));
+  el('scrub').setAttribute('aria-valuetext', `${fmt(at)} of ${fmt(dur)}`);
+
+  const ahead = source.getBufferedAhead();
+  el('scrubBuffer').style.width = `${Math.min(100, ((at + ahead) / dur) * 100)}%`;
 }
+
+// ---------------------------------------------------------------- seeking
+
+function scrubFraction(e) {
+  const r = el('scrub').getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+}
+
+function mayControl() {
+  return roomState.pausePolicy !== 'host' || isHost;
+}
+
+function seekToFraction(f) {
+  const dur = source?.getDuration?.() || 0;
+  if (!dur || source.isLive || !mayControl()) return;
+  send({ t: 'seek', time: f * dur });
+}
+
+el('scrub').addEventListener('pointerdown', (e) => {
+  if (!mayControl()) return;
+  e.preventDefault();
+  seekToFraction(scrubFraction(e));
+});
+
+// Show the time under the cursor before committing to it — scrubbing blind
+// through a two-hour film is guesswork.
+el('scrub').addEventListener('pointermove', (e) => {
+  const dur = source?.getDuration?.() || 0;
+  if (!dur || source.isLive) return;
+  const hint = el('scrubHint');
+  hint.hidden = false;
+  hint.textContent = fmt(scrubFraction(e) * dur);
+  hint.style.left = `${scrubFraction(e) * 100}%`;
+});
+el('scrub').addEventListener('pointerleave', () => (el('scrubHint').hidden = true));
+
+// Arrow keys nudge, as they do in every player.
+el('scrub').addEventListener('keydown', (e) => {
+  const dur = source?.getDuration?.() || 0;
+  if (!dur || !mayControl()) return;
+  const step = e.shiftKey ? 60 : 10;
+  if (e.key === 'ArrowRight') send({ t: 'seek', time: source.getCurrentTime() + step });
+  else if (e.key === 'ArrowLeft') send({ t: 'seek', time: Math.max(0, source.getCurrentTime() - step) });
+  else return;
+  e.preventDefault();
+});
 
 function fmt(s) {
   s = Math.max(0, Math.floor(s || 0));
@@ -614,8 +676,9 @@ function renderState() {
 
   // A control you are not allowed to use should look that way, rather than
   // silently doing nothing when pressed.
-  const mayControl = roomState.pausePolicy !== 'host' || isHost;
-  for (const b of document.querySelectorAll('.js-play')) b.disabled = !source || !mayControl;
+  const allowed = mayControl();
+  for (const b of document.querySelectorAll('.js-play')) b.disabled = !source || !allowed;
+  el('scrub').setAttribute('aria-disabled', String(!allowed));
   el('seekBtn') && (el('seekBtn').disabled = !mayControl);
 
   renderHostControls();

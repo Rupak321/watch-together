@@ -80,6 +80,17 @@
     </div>
 
     <div class="controls" id="controls">
+      <div class="scrub" id="scrub" role="slider" tabindex="0" aria-label="Seek"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="scrub-track">
+          <div class="scrub-buffer" id="scrubBuffer"></div>
+          <div class="scrub-played" id="scrubPlayed"></div>
+          <div class="scrub-knob" id="scrubKnob"></div>
+        </div>
+        <div class="scrub-hint" id="scrubHint" hidden></div>
+      </div>
+
+      <div class="ctrl-row">
       <button id="playBtn" class="js-play">Play</button>
       <span class="clock"><span id="posLabel">0:00</span> / <span id="durLabel">0:00</span></span>
       <div class="grow"></div>
@@ -103,8 +114,10 @@
           </div>
         </div>
       </div>
+      <button class="ghost" id="ccBtn" hidden aria-pressed="false">Subtitles</button>
       <button class="ghost" id="lightsBtn">Lights up</button>
       <button class="ghost" id="fullBtn">Full screen</button>
+      </div>
     </div>
   </main>
 
