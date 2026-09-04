@@ -9,11 +9,21 @@
     "binding": "ASSETS"
   },
 
-  // Create it once with:  npx wrangler r2 bucket create watch-together-media
+  // Uploads are off until R2 is switched on, because a binding naming a
+  // bucket that does not exist blocks every deploy, not just uploading.
+  //
+  // To turn them on:
+  //   1. dash.cloudflare.com -> R2 -> enable it on the account (one time)
+  //   2. npx wrangler r2 bucket create watch-together-media
+  //   3. uncomment the block below
+  //   4. npx wrangler deploy
+  //
   // R2 has zero egress fees at every tier; the free limit is 10 GB stored.
-  "r2_buckets": [
-    { "binding": "MEDIA", "bucket_name": "watch-together-media" }
-  ],
+  // Everything else — sync, voice, screen share, chat — works without it.
+  //
+  // "r2_buckets": [
+  //   { "binding": "MEDIA", "bucket_name": "watch-together-media" }
+  // ],
 
   "durable_objects": {
     "bindings": [

@@ -184,6 +184,12 @@ export default {
       }
     }
 
+    // Lets the room disable the upload panel up front, instead of letting
+    // someone choose a file and wait through a check before finding out.
+    if (url.pathname === '/api/capabilities') {
+      return Response.json({ upload: !!env.MEDIA });
+    }
+
     if (url.pathname.startsWith('/api/upload/')) {
       const res = await handleUpload(request, env, url);
       if (res) return res;

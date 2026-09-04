@@ -991,6 +991,20 @@ async function startUpload(file) {
 
 el('fileInput').addEventListener('change', (e) => startUpload(e.target.files?.[0]));
 
+// Storage is optional — the room runs fine without it — so say so before
+// someone picks a four gigabyte file and waits for a check that cannot help.
+fetch('/api/capabilities')
+  .then((r) => r.json())
+  .then(({ upload }) => {
+    if (upload) return;
+    el('tabUpload').hidden = true;
+    el('dropZone').style.display = 'none';
+    el('upError').textContent =
+      'Uploads are switched off for this site. Everything else works — use Screen to share a film playing in another tab.';
+    el('upError').hidden = false;
+  })
+  .catch(() => {});
+
 el('upCancel').addEventListener('click', () => {
   uploader?.cancel();
   el('upPct').textContent = 'stopped — pick the same file to carry on';
