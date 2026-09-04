@@ -21,12 +21,25 @@ import { join, extname, resolve, basename } from 'node:path';
 const dir = resolve(process.argv[2] || process.cwd());
 const PORT = Number(process.env.PORT || 8099);
 
+// Listed as playable films.
 const TYPES = {
   '.mp4': 'video/mp4',
   '.m4v': 'video/mp4',
   '.webm': 'video/webm',
   '.mov': 'video/quicktime',
   '.ogv': 'video/ogg'
+};
+
+// Served, but not offered as something to play — the room fetches a subtitle
+// file sitting beside the film on its own.
+const SIDECARS = {
+  '.vtt': 'text/vtt; charset=utf-8',
+  '.srt': 'text/plain; charset=utf-8'
+};
+
+const contentTypeOf = (f) => {
+  const e = extname(f).toLowerCase();
+  return TYPES[e] || SIDECARS[e] || 'application/octet-stream';
 };
 
 if (!existsSync(dir)) {
@@ -46,12 +59,15 @@ const server = createServer((req, res) => {
   // Refuse anything trying to climb out of the shared folder.
   const file = join(dir, basename(name));
   if (!existsSync(file)) {
-    res.writeHead(404);
+    // CORS on the miss too: the room probes for a sibling .vtt before .srt,
+    // and a bare 404 makes the browser log a CORS failure instead of a clean
+    // not-found.
+    res.writeHead(404, { 'access-control-allow-origin': '*' });
     return res.end('Not found');
   }
 
   const { size } = statSync(file);
-  const type = TYPES[extname(file).toLowerCase()] || 'application/octet-stream';
+  const type = contentTypeOf(file);
   const range = req.headers.range;
 
   // Range is what makes seeking work. Python's http.server does not implement

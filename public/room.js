@@ -410,6 +410,7 @@ async function loadSource(s) {
     setPlayEnabled(true);
     el('srcNotice').hidden = true;
     applyMovieVolume(); // a fresh player starts at full, ignoring the chosen level
+    findSubtitles(s.id);
     startTicking();
   } catch (err) {
     loadedKey = null;
@@ -419,6 +420,45 @@ async function loadSource(s) {
     showSrcError(err.message);
   }
 }
+
+/**
+ * Look for subtitles sitting next to the film — movie.mp4 beside movie.vtt.
+ *
+ * Nobody wants to paste a second URL, and a Hindi film with English subs is
+ * exactly the case worth handling without being asked.
+ */
+async function findSubtitles(videoUrl) {
+  el('ccBtn').hidden = true;
+  if (!source?.setSubtitles) return;
+
+  let base;
+  try {
+    const u = new URL(videoUrl, location.href);
+    u.pathname = u.pathname.replace(/\.[^./]+$/, '');
+    u.search = '';
+    base = u.toString();
+  } catch {
+    return;
+  }
+
+  for (const ext of ['.vtt', '.srt']) {
+    if (await source.setSubtitles(base + ext)) {
+      el('ccBtn').hidden = false;
+      el('ccBtn').dataset.on = 'true';
+      el('ccBtn').setAttribute('aria-pressed', 'true');
+      el('ccBtn').textContent = 'Subtitles on';
+      return;
+    }
+  }
+}
+
+el('ccBtn').addEventListener('click', (e) => {
+  const on = e.currentTarget.dataset.on !== 'true';
+  source?.showSubtitles?.(on);
+  e.currentTarget.dataset.on = String(on);
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+  e.currentTarget.textContent = on ? 'Subtitles on' : 'Subtitles';
+});
 
 /** Put a live MediaStream on the stage, reusing the player if one is already up. */
 function mountStream(stream) {

@@ -165,11 +165,69 @@ export function createFileSource(mountEl, url) {
   });
 }
 
+/** SubRip is nearly WebVTT: a header, no cue numbers, dots not commas. */
+function srtToVtt(text) {
+  return (
+    'WEBVTT\n\n' +
+    text
+      .replace(/\r/g, '')
+      .replace(/^\s*\d+\s*$/gm, '')
+      .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+      .trim()
+  );
+}
+
 function wrapFile(video, mountEl) {
   return {
     kind: 'file',
     supportsFineRate: true,
     el: video,
+    hasSubtitles: false,
+
+    /**
+     * Load subtitles without demanding CORS on the video itself.
+     *
+     * A cross-origin <track> needs CORS, and satisfying it means putting
+     * `crossorigin` on the <video> — which then makes the *video* require
+     * CORS too, breaking every source that plays fine without it today.
+     * Fetching the cues and handing over a blob keeps that cost contained to
+     * the subtitle file.
+     */
+    async setSubtitles(url) {
+      for (const t of video.querySelectorAll('track')) {
+        URL.revokeObjectURL(t.src);
+        t.remove();
+      }
+      this.hasSubtitles = false;
+      if (!url) return false;
+
+      let text;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return false;
+        text = await res.text();
+      } catch {
+        return false;
+      }
+      if (!text.trim()) return false;
+      if (!/^WEBVTT/.test(text.trim())) text = srtToVtt(text);
+
+      const track = document.createElement('track');
+      track.kind = 'subtitles';
+      track.label = 'Subtitles';
+      track.srclang = 'en';
+      track.default = true;
+      track.src = URL.createObjectURL(new Blob([text], { type: 'text/vtt' }));
+      video.appendChild(track);
+
+      this.hasSubtitles = true;
+      this.showSubtitles(true);
+      return true;
+    },
+
+    showSubtitles(on) {
+      for (const t of video.textTracks) t.mode = on ? 'showing' : 'hidden';
+    },
 
     play() {
       // Rejects without a user gesture; the join click primes the element.

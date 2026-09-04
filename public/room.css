@@ -481,6 +481,11 @@ body { overflow-x: hidden; }
 /* Live mic reads as light, the same as the rail. */
 button.js-mic[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
+#ccBtn[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
+
+/* Cues sit above the controls rather than behind them. */
+.stage video::cue { font-size: 1.05em; line-height: 1.35; background: rgba(0, 0, 0, .72); }
+.stage-wrap.awake .stage video::-webkit-media-text-track-container { bottom: 60px; }
 
 /* volume popover — the side panel is gone once the lights are down, which is
    exactly when someone reaches for the volume */
