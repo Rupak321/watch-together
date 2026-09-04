@@ -60,14 +60,22 @@ correctly reports `relay: false` with no credentials set; peer ids arrive; rail 
 created and kept (not rebuilt) so a `<video>` survives roster updates; a blocked microphone
 produces an actionable message without half-flipping the button state.
 
+### Proven on two machines, different networks
+
+Voice connects on STUN alone — no relay needed. Chat persists. Screen sharing reaches
+viewers. Playback stayed in sync between two people.
+
 ### Still unproven
 
-- **Real network latency.** RTT was ~1 ms because everything ran on localhost. The
-  lowest-RTT sampling exists for networks with jitter, so the honest test is two machines
-  on different connections.
-- **An actual peer connection.** No microphone is available in the dev sandbox, so the
-  offer/answer exchange, perfect-negotiation glare handling, ducking and speaking detection
-  have never carried real audio. Two machines with microphones is the only way to know.
+- **The camera path.** No webcam in the dev sandbox, so adding and removing a video track
+  mid-call has never actually run. Renegotiation glare during a live call is where WebRTC
+  gets nasty, and the transceiver flip under buffer pressure renegotiates at the worst
+  possible moment.
+- **Ducking.** The film dipping while someone talks has never been heard against real
+  remote audio.
+- **Anything above two people.** Mesh is three connections each at four people; nobody has
+  run that.
+- **Phones.** There is a breakpoint in the CSS, not a design.
 
 ---
 
