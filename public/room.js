@@ -22,6 +22,27 @@ let myId = null;
 let isHost = false;
 let voice = null;
 let nudgeMs = 0;
+
+// Two separate volumes, because they are two separate problems: a film mixed
+// too loud, and a friend who is too quiet. Ducking multiplies into the film's
+// setting rather than replacing it, so dipping for speech never undoes the
+// level someone chose.
+let movieVolume = 1;
+let duckLevel = 1;
+
+function applyMovieVolume() {
+  source?.setVolume?.(movieVolume * duckLevel);
+}
+
+function loadVolumes() {
+  try {
+    const m = parseFloat(localStorage.getItem('wt:vol:movie'));
+    const v = parseFloat(localStorage.getItem('wt:vol:voice'));
+    if (!isNaN(m)) movieVolume = m;
+    if (!isNaN(v)) return v;
+  } catch {}
+  return 1;
+}
 let loadedKey = null;
 let readyTimer = null;
 let controlsTimer = null;
@@ -77,7 +98,10 @@ function setupVoice() {
 
     // Remote voices dip the film, never your own. Every source implements
     // setVolume, so this works the same for a file and for YouTube.
-    onDuck: (level) => source?.setVolume?.(level),
+    onDuck: (level) => {
+      duckLevel = level;
+      applyMovieVolume();
+    },
 
     onPeerStream: (id, stream) => {
       const tile = tiles.get(id);
@@ -368,6 +392,7 @@ async function loadSource(s) {
     el('metaLabel').textContent = bits.join(' · ');
     el('startBtn').disabled = false;
     el('srcNotice').hidden = true;
+    applyMovieVolume(); // a fresh player starts at full, ignoring the chosen level
     startTicking();
   } catch (err) {
     loadedKey = null;
@@ -389,6 +414,7 @@ function mountStream(stream) {
     corrector = null; // a live stream has nothing to correct
   }
   el('startBtn').disabled = true;
+  applyMovieVolume();
   startTicking();
 }
 

@@ -61,6 +61,20 @@ export class VoiceMesh {
     this.myId = id;
   }
 
+  /**
+   * How loud everyone else is, independent of the film's own volume.
+   *
+   * Applied to the <audio> elements rather than to a gain node, so it keeps
+   * working for peers whose stream never went through Web Audio.
+   */
+  setPeerVolume(v) {
+    this.peerVolume = Math.max(0, Math.min(1, v));
+    for (const id of this.peers.keys()) {
+      const audio = document.getElementById(`peer-audio-${id}`);
+      if (audio) audio.volume = this.peerVolume;
+    }
+  }
+
   // ------------------------------------------------------------- lifecycle
 
   /**
@@ -496,6 +510,7 @@ export class VoiceMesh {
       document.body.appendChild(audio);
     }
     if (audio.srcObject !== stream) audio.srcObject = stream;
+    audio.volume = this.peerVolume ?? 1;
     audio.play().catch(() => {});
 
     const entry = this.peers.get(id);
