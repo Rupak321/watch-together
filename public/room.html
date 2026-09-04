@@ -128,6 +128,7 @@
         <button role="tab" id="tabLink" aria-selected="true" aria-controls="paneLink">Link</button>
         <button role="tab" id="tabArchive" aria-selected="false" aria-controls="paneArchive">Archive</button>
         <button role="tab" id="tabScreen" aria-selected="false" aria-controls="paneScreen">Screen</button>
+        <button role="tab" id="tabUpload" aria-selected="false" aria-controls="paneUpload">Upload</button>
       </div>
 
       <div class="src-pane" id="paneLink" role="tabpanel">
@@ -146,6 +147,29 @@
           another tab and share that tab. In the picker choose <b>Browser tab</b>, not
           Entire screen, and <b>tick "Also share tab audio"</b> or your friends get a silent
           film. Quality follows your upload speed; it stops when you close the tab.</p>
+      </div>
+
+      <div class="src-pane" id="paneUpload" role="tabpanel" hidden>
+        <label class="drop" id="dropZone" for="fileInput">
+          <b>Choose a film</b>
+          <span>or drop it here</span>
+          <input type="file" id="fileInput" accept="video/*" hidden>
+        </label>
+
+        <div id="upStatus" hidden>
+          <div class="up-name" id="upName"></div>
+          <div class="up-bar"><div class="up-fill" id="upFill"></div></div>
+          <div class="up-meta">
+            <span id="upPct">0%</span>
+            <button class="bare" id="upCancel" style="min-height:0;padding:2px 6px;font-size:.75rem">Cancel</button>
+          </div>
+        </div>
+
+        <p class="notice err" id="upError" hidden style="margin-top:11px"></p>
+        <pre class="fixcmd" id="upFix" hidden></pre>
+
+        <p class="src-hint">MP4 with H.264 video and AAC audio plays everywhere. The file is
+          checked before anything uploads, and deleted after 7 days.</p>
       </div>
 
       <div class="src-pane" id="paneArchive" role="tabpanel" hidden>

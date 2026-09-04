@@ -503,6 +503,59 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 .src-pane button { min-height: 40px; padding: 9px 13px; }
 .src-hint { font-size: 0.75rem; color: var(--faint); margin-top: 8px; }
 
+/* upload */
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 22px 14px;
+  border: 1px dashed var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.drop:hover, .drop.over { border-color: var(--brass); background: rgba(201, 162, 39, .06); }
+.drop b { font-size: 0.9375rem; font-weight: 600; }
+.drop span { font-size: 0.8125rem; color: var(--muted); }
+
+#upStatus { margin-top: 13px; }
+.up-name {
+  font-size: 0.8125rem;
+  margin-bottom: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.up-bar { height: 5px; background: var(--ink-raised); border-radius: 3px; overflow: hidden; }
+.up-fill { height: 100%; width: 0; background: var(--brass); transition: width 220ms var(--ease); }
+.up-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* The exact line to paste into a terminal, so it can be copied not retyped. */
+.fixcmd {
+  margin: 9px 0 0;
+  padding: 10px;
+  background: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--lamp);
+  overflow-x: auto;
+  white-space: pre;
+  user-select: all;
+}
+
 .results { list-style: none; margin: 11px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
 .results li { border-bottom: 1px solid rgba(242, 237, 228, .07); }
 .results li:last-child { border-bottom: 0; }

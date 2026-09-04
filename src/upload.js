@@ -132,9 +132,10 @@ export async function serveMedia(request, env, url) {
     return new Response(null, { headers });
   }
 
-  // A ranged hit comes back with a `range` describing what was actually read,
-  // and the browser needs that echoed as content-range or it will not seek.
-  if (object.range && 'offset' in object.range) {
+  // Only answer 206 when the request actually asked for a range. R2 reports a
+  // `range` on plain reads too, and replying 206 to an unconditional GET is
+  // wrong — some players refuse it outright.
+  if (range && object.range && 'offset' in object.range) {
     const start = object.range.offset ?? 0;
     const length = object.range.length ?? object.size - start;
     headers.set('content-range', `bytes ${start}-${start + length - 1}/${object.size}`);
