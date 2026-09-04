@@ -67,7 +67,8 @@ export class Room {
         drift: null,
         buffered: 0,
         mesh: false,
-        mic: false
+        mic: false,
+        live: false
       });
 
       return new Response(null, { status: 101, webSocket: client });
@@ -158,6 +159,7 @@ export class Room {
         const att = ws.deserializeAttachment() || {};
         att.mesh = !!msg.mesh;
         att.mic = !!msg.mic;
+        att.live = !!msg.live;
         ws.serializeAttachment(att);
         this.broadcastRoster();
         return;
@@ -399,6 +401,7 @@ export class Room {
         buffered: a.buffered || 0,
         mesh: !!a.mesh,
         mic: !!a.mic,
+        live: !!a.live,
         host: !!a.key && a.key === this.state.hostKey
       };
     });

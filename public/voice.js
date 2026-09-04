@@ -103,7 +103,15 @@ export class VoiceMesh {
    * microphone silently dropped every incoming offer.
    */
   announce() {
-    this.send({ t: 'presence', mesh: this.onMesh, mic: this.micOn });
+    this.send({
+      t: 'presence',
+      mesh: this.onMesh,
+      mic: this.micOn,
+      // Live means the gate is actually open — not muted, and either
+      // push-to-talk is off or the key is down. Without this nobody can tell
+      // a muted person from a quiet one.
+      live: this.micOn && !this.muted && (!this.pttMode || this.pttHeld)
+    });
   }
 
   /** True while this client has anything to contribute to the mesh. */
@@ -302,6 +310,12 @@ export class VoiceMesh {
     if (!live) {
       this.speaking.delete(this.myId);
       this.hooks.onSpeaking?.(this.myId, false);
+    }
+    // Push-to-talk flips this several times a sentence, so only tell the room
+    // when the answer actually changed.
+    if (this.onMesh && live !== this.lastLive) {
+      this.lastLive = live;
+      this.announce();
     }
   }
 

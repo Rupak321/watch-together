@@ -698,7 +698,7 @@ function renderRoster(peers) {
 
     const li = document.createElement('li');
     const pip = document.createElement('span');
-    pip.className = 'pip' + (p.mic ? '' : ' wait');
+    pip.className = 'pip' + (p.live ? '' : ' wait');
     const nm = document.createElement('span');
     nm.className = 'nm';
     nm.textContent = p.name + (p.id === myId ? ' (you)' : '');
@@ -709,7 +709,7 @@ function renderRoster(peers) {
     // "loading" for somebody who is simply sitting in the foyer is a lie.
     const lag = p.drift === null ? 0 : -p.drift;
     if (roomState.phase === 'preparing') st.textContent = p.ready ? 'ready' : 'buffering';
-    else if (!roomState.playing) st.textContent = p.mic ? 'on voice' : p.mesh ? 'watching' : 'here';
+    else if (!roomState.playing) st.textContent = p.mic ? (p.live ? 'on voice' : 'muted') : p.mesh ? 'watching' : 'here';
     else if (lag > BEHIND_S) st.textContent = `${lag.toFixed(1)}s behind`;
     else st.textContent = 'in sync';
 
@@ -729,6 +729,7 @@ function renderRoster(peers) {
     tile.title = p.name;
     tile.querySelector('.initials').textContent = p.name.slice(0, 2).toUpperCase();
     tile.classList.toggle('behind', lag > BEHIND_S);
+    tile.classList.toggle('muted', p.mic && !p.live);
 
     if (lag > BEHIND_S && (!behind || lag > behind.lag)) behind = { name: p.name, lag };
   }

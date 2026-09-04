@@ -181,6 +181,20 @@ body { overflow-x: hidden; }
 }
 .tile.behind { opacity: .45; }
 
+/* On voice but not sending — muted, or push-to-talk with the key up. */
+.tile.muted { border-color: #3A2F2A; }
+.tile.muted::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fault);
+}
+.tile { position: relative; }
+
 /* A tile grows into a video surface when that person turns their camera on,
    so the rail is the only place faces ever live. */
 .tile .initials { pointer-events: none; }
