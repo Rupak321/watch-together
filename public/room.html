@@ -172,6 +172,16 @@
       <p class="notice err" id="voiceNotice" hidden style="margin-top:11px"></p>
     </div>
 
+    <div class="panel">
+      <span class="eyebrow">Audio</span>
+      <div class="mixer">
+        <label for="movieVol">Film <span class="mono" id="movieVolVal">100%</span></label>
+        <input type="range" id="movieVol" min="0" max="100" step="5" value="100">
+        <label for="voiceVol">Voices <span class="mono" id="voiceVolVal">100%</span></label>
+        <input type="range" id="voiceVol" min="0" max="100" step="5" value="100">
+      </div>
+    </div>
+
     <div class="panel chat-panel">
       <span class="eyebrow">Chat</span>
       <div class="chat-log" id="chatLog"></div>

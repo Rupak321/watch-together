@@ -87,6 +87,13 @@ function enterRoom() {
   el('gate').hidden = true;
   el('room').hidden = false;
   setupVoice();
+
+  // Restore whatever levels they last chose, and push them into the sliders
+  // so the UI and the audio path never disagree.
+  const savedVoice = loadVolumes();
+  setMovieVolume(Math.round(movieVolume * 100));
+  setVoiceVolume(Math.round(savedVoice * 100));
+
   connect();
 }
 
@@ -590,6 +597,31 @@ function renderHostControls() {
     el('pausePolicy').value = roomState.pausePolicy || 'anyone';
   }
 }
+
+// ------------------------------------------------------------------ mixer
+
+function setMovieVolume(pct) {
+  movieVolume = pct / 100;
+  el('movieVol').value = String(pct);
+  el('movieVolVal').textContent = `${pct}%`;
+  applyMovieVolume();
+  try {
+    localStorage.setItem('wt:vol:movie', String(movieVolume));
+  } catch {}
+}
+
+function setVoiceVolume(pct) {
+  const v = pct / 100;
+  el('voiceVol').value = String(pct);
+  el('voiceVolVal').textContent = `${pct}%`;
+  voice?.setPeerVolume(v);
+  try {
+    localStorage.setItem('wt:vol:voice', String(v));
+  } catch {}
+}
+
+el('movieVol').addEventListener('input', (e) => setMovieVolume(Number(e.target.value)));
+el('voiceVol').addEventListener('input', (e) => setVoiceVolume(Number(e.target.value)));
 
 el('pausePolicy').addEventListener('change', (e) => {
   send({ t: 'settings', pausePolicy: e.target.value });

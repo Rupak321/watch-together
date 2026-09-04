@@ -398,6 +398,27 @@ body { overflow-x: hidden; }
 button.js-mic[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 
+/* mixer */
+.mixer label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.8125rem;
+  color: var(--dim);
+  margin-bottom: 5px;
+}
+.mixer label .mono { font-size: 0.6875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mixer input[type="range"] {
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  margin: 0 0 13px;
+  background: none;
+  border: 0;
+  accent-color: var(--brass);
+}
+.mixer input[type="range"]:last-child { margin-bottom: 0; }
+
 /* chat */
 .chat-panel { flex: 1; display: flex; flex-direction: column; min-height: 160px; }
 .chat-log {
