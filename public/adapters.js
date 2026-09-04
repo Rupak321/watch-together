@@ -142,7 +142,18 @@ export function createFileSource(mountEl, url) {
     };
     const onError = () => {
       cleanup();
-      reject(new Error('That video could not be loaded. Check the URL is a direct file link.'));
+      // Distinguish the two failures that look identical from here. A page
+      // that plays a video inside it is not a video file, and a <video>
+      // element handed HTML reports the same "format error" as a genuinely
+      // broken file — so say which one this looks like.
+      const looksLikeAPage = !/\.(mp4|m4v|webm|ogv|ogg|mov)(\?|#|$)/i.test(url);
+      reject(
+        new Error(
+          looksLikeAPage
+            ? 'That is a web page, not a video file. Pages that play a video inside them cannot be loaded directly — open it in a tab and use Screen instead.'
+            : 'That file could not be loaded. The host may be blocking players on other sites.'
+        )
+      );
     };
     const cleanup = () => {
       video.removeEventListener('loadedmetadata', onLoaded);
