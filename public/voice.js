@@ -18,6 +18,10 @@ const DUCK_TO = 0.25;        // how far the film drops while someone talks
 const DUCK_DOWN_MS = 120;    // fast, so you don't miss the start of a sentence
 const DUCK_UP_MS = 600;      // slow, so it doesn't pump between words
 
+// A shared screen is the thing everyone is actually watching, so it gets real
+// bitrate — unlike cameras, which are thumbnails.
+const SCREEN_BITRATE = 4_000_000;
+
 // Camera during playback is capped hard. WebRTC's congestion control adapts in
 // milliseconds while an HTTP video fetch is passive, so an uncapped camera
 // wins the bandwidth fight and starves the film — which then presents as a
@@ -163,17 +167,29 @@ export class VoiceMesh {
     if (this.screenStream) return this.screenStream;
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30 } },
-      audio: true
+      video: { frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      // Tab audio, and without the processing meant for a talking head —
+      // echo cancellation and noise suppression wreck a film's soundtrack.
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
     });
     this.screenStream = stream;
+
+    // Tell the encoder this is moving pictures, not a slide of text. Without
+    // it the default assumption is a shared document, and it holds detail at
+    // the cost of frame rate — which is exactly backwards for a film.
+    const vid = stream.getVideoTracks()[0];
+    if (vid) vid.contentHint = 'motion';
 
     await this.joinMesh();
 
     for (const { pc } of this.peers.values()) {
       for (const track of stream.getTracks()) {
         const sender = pc.addTrack(track, stream);
-        if (track.kind === 'video') this.capSender(sender, 2_500_000);
+        if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
       }
     }
 
@@ -389,11 +405,17 @@ export class VoiceMesh {
     }
   }
 
-  async capSender(sender, bitrate) {
+  async capSender(sender, bitrate, motion) {
     try {
       const params = sender.getParameters();
       params.encodings = params.encodings?.length ? params.encodings : [{}];
       params.encodings[0].maxBitrate = bitrate;
+      if (motion) {
+        // Under strain, drop resolution before frame rate. A soft picture
+        // that still moves beats a sharp one that stutters through a film.
+        params.degradationPreference = 'maintain-framerate';
+        delete params.encodings[0].scaleResolutionDownBy;
+      }
       await sender.setParameters(params);
     } catch {}
   }
@@ -491,7 +513,7 @@ export class VoiceMesh {
     if (this.screenStream) {
       for (const track of this.screenStream.getTracks()) {
         const sender = pc.addTrack(track, this.screenStream);
-        if (track.kind === 'video') this.capSender(sender, 2_500_000);
+        if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
       }
     }
 
