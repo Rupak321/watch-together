@@ -53,6 +53,7 @@ let roomState = {
 };
 let pendingStart = null;
 let desiredPlaying = false;
+let playbackApplied = null; // what we last told the player, so we do not spam it
 
 // ------------------------------------------------------------------- setup
 
@@ -93,6 +94,7 @@ function enterRoom() {
   const savedVoice = loadVolumes();
   setMovieVolume(Math.round(movieVolume * 100));
   setVoiceVolume(Math.round(savedVoice * 100));
+  renderVoiceButtons(); // drive the buttons from state, not from HTML defaults
 
   connect();
 }
@@ -359,6 +361,7 @@ async function loadSource(s) {
   const key = `${s.kind}:${s.id}:${s.streamId || ''}`;
   if (loadedKey === key) return;
   loadedKey = key;
+  playbackApplied = null;
 
   // A shared screen arrives over WebRTC, not from a URL. The presenter mounts
   // their own capture; everyone else waits for the track to land and the
@@ -525,14 +528,25 @@ function tick() {
     if (now < pendingStart.clock) return;
     pendingStart = null;
     desiredPlaying = true;
-    source.play();
   }
 
   if (!desiredPlaying) {
-    source.pause();
+    if (playbackApplied !== false) {
+      source.pause();
+      playbackApplied = false;
+    }
     el('mAction').textContent = roomState.phase === 'preparing' ? 'buffering' : 'paused';
     renderPosition();
     return;
+  }
+
+  // Drive the player from the desired state rather than only from the start
+  // message. Someone joining a room that is already playing never receives a
+  // `playat`, so nothing else would ever call play() for them — they used to
+  // sit on a frozen frame while the corrector seeked it around underneath.
+  if (playbackApplied !== true) {
+    source.play();
+    playbackApplied = true;
   }
 
   // The nudge is this device's own correction against what it can see on
