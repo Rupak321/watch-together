@@ -148,6 +148,10 @@ body { overflow-x: hidden; }
   z-index: 4;
   display: flex;
   gap: 7px;
+  align-items: flex-end;
+  /* Grows upward when it runs out of width, so tiles never leave the frame. */
+  flex-wrap: wrap-reverse;
+  max-width: calc(100% - 28px);
   opacity: 1;
   pointer-events: none;
   transition: opacity 320ms ease, bottom 260ms var(--ease);
@@ -180,7 +184,17 @@ body { overflow-x: hidden; }
 /* A tile grows into a video surface when that person turns their camera on,
    so the rail is the only place faces ever live. */
 .tile .initials { pointer-events: none; }
-.tile.has-video { width: 96px; height: 54px; padding: 0; overflow: hidden; }
+
+/* Faces are worth seeing. Scales with the viewport so a small room gets big
+   tiles and a phone still fits them, and wraps upward rather than running off
+   the edge once there are several. */
+.tile.has-video {
+  width: clamp(104px, 13vw, 208px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  overflow: hidden;
+}
 .tile.has-video .initials { display: none; }
 .tile.has-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
