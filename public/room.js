@@ -406,7 +406,7 @@ async function loadSource(s) {
     if (s.part) bits.push(`part ${s.part.index}${s.part.total ? ` of ${s.part.total}` : ''}`);
     if (!source.supportsFineRate) bits.push('coarse sync');
     el('metaLabel').textContent = bits.join(' · ');
-    el('startBtn').disabled = false;
+    setPlayEnabled(true);
     el('srcNotice').hidden = true;
     applyMovieVolume(); // a fresh player starts at full, ignoring the chosen level
     startTicking();
@@ -414,7 +414,7 @@ async function loadSource(s) {
     loadedKey = null;
     el('stageEmpty').hidden = false;
     el('metaLabel').textContent = 'could not load';
-    el('startBtn').disabled = true;
+    setPlayEnabled(false);
     showSrcError(err.message);
   }
 }
@@ -429,7 +429,7 @@ function mountStream(stream) {
     source = createStreamSource(el('stage'), stream);
     corrector = null; // a live stream has nothing to correct
   }
-  el('startBtn').disabled = true;
+  setPlayEnabled(false);
   applyMovieVolume();
   startTicking();
 }
@@ -447,7 +447,7 @@ function clearSource() {
   el('stageEmpty').querySelector('h2').textContent = 'Nothing playing yet';
   el('stageEmpty').querySelector('p').textContent =
     "Pick something from the panel — a YouTube link, a direct video URL, the public-domain archive, or share your screen.";
-  el('startBtn').disabled = true;
+  setPlayEnabled(false);
   el('titleLabel').textContent = 'No source yet';
   el('metaLabel').textContent = 'Pick something to watch';
   renderScreenButton();
@@ -600,15 +600,21 @@ function setMode(mode) {
   if (mode === 'house') wakeControls();
 }
 
+function setPlayEnabled(on) {
+  for (const b of document.querySelectorAll('.js-play')) b.disabled = !on;
+}
+
 function renderState() {
-  el('playBtn').textContent = roomState.playing ? 'Pause' : 'Play';
-  el('startBtn').textContent = roomState.playing ? 'Playing' : 'Start';
+  // One control, shown in two places. They used to disagree: the foyer button
+  // only ever sent "play" and was disabled while playing, so pressing "Lights
+  // up" mid-film hid the controls bar and left nothing that could pause.
+  const label = roomState.playing ? 'Pause' : 'Play';
+  for (const b of document.querySelectorAll('.js-play')) b.textContent = label;
 
   // A control you are not allowed to use should look that way, rather than
   // silently doing nothing when pressed.
   const mayControl = roomState.pausePolicy !== 'host' || isHost;
-  el('startBtn').disabled = !source || roomState.playing || !mayControl;
-  el('playBtn').disabled = !mayControl;
+  for (const b of document.querySelectorAll('.js-play')) b.disabled = !source || !mayControl;
   el('seekBtn') && (el('seekBtn').disabled = !mayControl);
 
   renderHostControls();
@@ -824,8 +830,9 @@ function wakeControls() {
   el('stageWrap').addEventListener(ev, wakeControls, { passive: true })
 );
 
-el('playBtn').addEventListener('click', () => send({ t: roomState.playing ? 'pause' : 'play' }));
-el('startBtn').addEventListener('click', () => send({ t: 'play' }));
+document.querySelectorAll('.js-play').forEach((b) =>
+  b.addEventListener('click', () => send({ t: roomState.playing ? 'pause' : 'play' }))
+);
 el('lightsBtn').addEventListener('click', () => {
   setMode(el('room').dataset.mode === 'house' ? 'foyer' : 'house');
 });
