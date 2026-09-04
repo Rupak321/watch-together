@@ -148,12 +148,10 @@ body { overflow-x: hidden; }
   z-index: 4;
   display: flex;
   gap: 7px;
-  opacity: 0;
-  transform: translateY(6px);
+  opacity: 1;
   pointer-events: none;
-  transition: opacity 480ms ease 380ms, transform 480ms var(--ease) 380ms;
+  transition: opacity 320ms ease, bottom 260ms var(--ease);
 }
-.room[data-mode="house"] .rail { opacity: 1; transform: none; }
 
 .tile {
   min-width: 38px;
@@ -319,9 +317,11 @@ body { overflow-x: hidden; }
 .react-strip button { font-size: 17px; padding: 6px 8px; min-height: 34px; background: transparent; border: 0; }
 .react-strip button:hover { filter: none; transform: scale(1.2); }
 
-/* Hide the rail and chat behind the controls when they're up. */
-.room[data-mode="house"] .stage-wrap.awake .rail,
-.room[data-mode="house"] .stage-wrap.awake .floatchat { opacity: 0; }
+/* Lift the rail and chat clear of the controls rather than hiding them.
+   Hiding meant faces vanished the moment anyone moved the mouse — which is
+   exactly when someone is looking for them. */
+.stage-wrap.awake .rail { bottom: 68px; }
+.stage-wrap.awake .floatchat { bottom: 106px; }
 
 /* ------------------------------------------------------------- foyer under */
 

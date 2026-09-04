@@ -430,6 +430,14 @@ export class VoiceMesh {
     for (const id of [...this.peers.keys()]) {
       if (!this.known.has(id)) this.dropPeer(id);
     }
+
+    // If anyone else is on the mesh, join it so their camera, voice or screen
+    // can actually reach this client. Waiting for them to turn something on
+    // first meant a camera lit up on the sender's laptop and arrived nowhere.
+    if (!this.onMesh && [...this.known.values()].some((p) => p.mesh)) {
+      this.watchOnly().catch(() => {});
+      return;
+    }
     if (this.onMesh) this.dialKnownPeers();
   }
 
