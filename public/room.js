@@ -679,6 +679,13 @@ function renderRoster(peers) {
   for (const p of peers) {
     seen.add(p.id);
 
+    // Host can change mid-session — it passes on when the host leaves — so
+    // track it from the roster rather than only from the hello reply.
+    if (p.id === myId && p.host !== isHost) {
+      isHost = !!p.host;
+      renderHostControls();
+    }
+
     const li = document.createElement('li');
     const pip = document.createElement('span');
     pip.className = 'pip' + (p.mic ? '' : ' wait');

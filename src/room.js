@@ -246,12 +246,38 @@ export class Room {
       this.broadcast({ t: 'system', text: `${att.name || 'guest'} left` });
     }
 
+    let changed = false;
+
     // A shared screen dies with the person sharing it. Leaving the source in
     // place strands everyone else on "Connecting to the shared screen".
     if (this.state.source?.kind === 'screen' && this.state.source.id === att.id) {
       this.state.source = null;
       this.state.playing = false;
       this.state.phase = 'idle';
+      changed = true;
+    }
+
+    // If the host walks out while only the host may control playback, the
+    // room is left with nobody able to press play. Hand it to whoever is
+    // still here rather than stranding them.
+    if (att.key && att.key === this.state.hostKey && !this.hasOtherSocketFor(ws, att.key)) {
+      const heir = this.ctx
+        .getWebSockets()
+        .map((s) => (s.deserializeAttachment() || {}).key)
+        .find((k) => k && k !== att.key);
+
+      if (heir) {
+        this.state.hostKey = heir;
+        this.broadcast({ t: 'system', text: 'The host left — you have the room now' });
+      } else {
+        // Nobody left to inherit it; do not leave a locked room behind.
+        this.state.hostKey = null;
+        this.state.pausePolicy = 'anyone';
+      }
+      changed = true;
+    }
+
+    if (changed) {
       this.ctx.waitUntil(this.save());
       this.broadcast({ t: 'state', ...this.publicState() });
     }
