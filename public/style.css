@@ -1,0 +1,179 @@
+/* ==========================================================================
+   Design tokens and base. Two grounds — foyer (lights up) and house (down).
+   Deliberately single-theme: this is a cinema, it commits to the dark.
+   ========================================================================== */
+
+:root {
+  /* Foyer — theater carpet and brass. Before the film, and on pause. */
+  --foyer:        #2A1620;
+  --foyer-raised: #3A2029;
+  --brass:        #C9A227;
+
+  /* House — warm near-black, never #000. Projection bulbs are warm. */
+  --ink:          #0B0908;
+  --ink-raised:   #16120F;
+
+  --screen:       #F2EDE4;
+  --dim:          #CFC3B8;
+  --muted:        #8A7D74;
+  --faint:        #6E625B;
+  --lamp:         #E8A33D;
+  --fault:        #C4564A;
+  --rule:         #241D19;
+
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --ease: cubic-bezier(.4, 0, .2, 1);
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* Author rules beat the UA stylesheet, so a bare `label { display: block }`
+   silently defeats the `hidden` attribute. Restate it with force once. */
+[hidden] { display: none !important; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--screen);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------- type */
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  margin: 0;
+  text-wrap: balance;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+}
+
+p { margin: 0; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mono { font-family: var(--mono); }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+
+/* ------------------------------------------------------------- controls */
+
+button {
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: 0;
+  border-radius: 3px;
+  padding: 13px 22px;
+  min-height: 44px;
+  cursor: pointer;
+  background: var(--brass);
+  color: #1A0E13;
+  transition: filter 160ms var(--ease), transform 120ms var(--ease);
+}
+button:hover:not(:disabled) { filter: brightness(1.1); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+button.ghost {
+  background: transparent;
+  color: var(--screen);
+  border: 1px solid var(--rule);
+  font-weight: 500;
+}
+button.ghost:hover:not(:disabled) { border-color: var(--lamp); color: var(--lamp); filter: none; }
+
+button.bare {
+  background: transparent;
+  color: var(--dim);
+  border: 0;
+  padding: 10px 12px;
+  font-weight: 500;
+}
+button.bare:hover:not(:disabled) { color: var(--lamp); filter: none; }
+
+input, select {
+  font-family: var(--body);
+  font-size: 0.9375rem;
+  background: var(--ink-raised);
+  color: var(--screen);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 12px 14px;
+  min-height: 44px;
+  width: 100%;
+}
+input::placeholder { color: var(--faint); }
+
+/* Room codes are read aloud over the phone — always mono, always spaced. */
+input.code {
+  font-family: var(--mono);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+label {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lamp);
+  outline-offset: 2px;
+}
+
+a { color: var(--lamp); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --------------------------------------------------------------- shared */
+
+.field { display: flex; flex-direction: column; }
+.row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.row > .field { flex: 1 1 200px; }
+
+.notice {
+  font-size: 0.875rem;
+  padding: 11px 14px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+.notice.err { color: var(--fault); border-color: rgba(196, 86, 74, .35); background: rgba(196, 86, 74, .08); }
+.notice.info { color: var(--dim); border-color: var(--rule); background: var(--ink-raised); }
+.notice[hidden] { display: none !important; }
+
+.spin {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(232, 163, 61, .25);
+  border-top-color: var(--lamp);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+  }
+  .spin { animation: none !important; border-top-color: var(--lamp); }
+}

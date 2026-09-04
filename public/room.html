@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Room · Watch Together</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/room.css">
+</head>
+<body>
+
+<!-- Join gate. The click also hands us the gesture browsers require before
+     any playback can start, so it is load-bearing, not just a form. -->
+<div class="shell" id="gate" style="max-width:440px;margin:0 auto;padding:14vh 24px 60px">
+  <span class="eyebrow" style="display:block;margin-bottom:14px">Joining room <b id="gateCode" class="mono"></b></span>
+  <h1 style="font-size:2.25rem;font-variation-settings:'wdth' 84;margin-bottom:8px">Who's watching?</h1>
+  <p class="muted" style="margin-bottom:24px">Your name shows in the room. No account, nothing saved.</p>
+  <div class="field" style="margin-bottom:14px">
+    <label for="nameInput">Your name</label>
+    <input id="nameInput" placeholder="Aarav" maxlength="24" autocomplete="nickname">
+  </div>
+  <button id="enterBtn" style="width:100%">Enter room</button>
+  <p class="notice err" id="gateNotice" hidden style="margin-top:14px"></p>
+  <p class="faint" style="font-size:.8125rem;margin-top:18px">Headphones are worth it — they keep
+    the film out of everyone else's microphone.</p>
+</div>
+
+<!-- ---------------------------------------------------------------- room -->
+
+<div class="room" id="room" data-mode="foyer" hidden>
+
+  <header class="room-head">
+    <div class="wordmark">Watch<span>·</span>Together</div>
+    <div class="code-chip">
+      <span class="val" id="codeVal"></span>
+      <button class="bare" id="copyBtn" style="min-height:32px;padding:6px 10px;font-size:.8125rem">Copy link</button>
+    </div>
+    <div class="head-spacer"></div>
+    <span class="eyebrow" id="connLabel">connecting</span>
+    <button class="ghost" id="leaveBtn" style="min-height:36px;padding:8px 14px;font-size:.8125rem">Leave</button>
+  </header>
+
+  <main class="stage-wrap" id="stageWrap">
+    <div class="stage" id="stage"></div>
+
+    <div class="stage-empty" id="stageEmpty">
+      <h2>Nothing playing yet</h2>
+      <p>Pick something from the panel — a YouTube link, a direct video URL, or the public-domain archive.</p>
+    </div>
+
+    <div class="band" id="band">
+      <span id="bandText"></span>
+      <span class="right" id="bandRight"></span>
+    </div>
+
+    <div class="reactions" id="reactions"></div>
+    <div class="floatchat" id="floatChat"></div>
+    <div class="rail" id="rail"></div>
+
+    <div class="sync">
+      <button class="sync-btn" id="syncBtn" aria-expanded="false">
+        <span class="sync-dot" id="syncDot"></span><span id="syncLabel">in sync</span>
+      </button>
+      <div class="sync-panel" id="syncPanel" hidden>
+        <dl>
+          <dt>Drift</dt><dd id="mDrift">—</dd>
+          <dt>Correcting</dt><dd id="mAction">idle</dd>
+          <dt>Clock offset</dt><dd id="mOffset">—</dd>
+          <dt>Round trip</dt><dd id="mRtt">—</dd>
+        </dl>
+        <label for="nudge">Nudge this device <span id="nudgeVal" class="mono">0ms</span></label>
+        <input type="range" id="nudge" min="-300" max="300" step="10" value="0">
+        <p class="faint" style="font-size:.75rem;margin-top:8px">Only changes your screen. Use it if
+          you can see another screen in the room and want to match it exactly.</p>
+      </div>
+    </div>
+
+    <div class="controls" id="controls">
+      <button id="playBtn">Play</button>
+      <span class="clock"><span id="posLabel">0:00</span> / <span id="durLabel">0:00</span></span>
+      <div class="grow"></div>
+      <button class="ghost js-mic" data-on="false">Join voice</button>
+      <button class="ghost js-cam" data-on="false" hidden>Camera</button>
+      <div class="react-strip" id="reactStrip">
+        <button data-emoji="😂" aria-label="React with laughing">😂</button>
+        <button data-emoji="😭" aria-label="React with crying">😭</button>
+        <button data-emoji="🔥" aria-label="React with fire">🔥</button>
+        <button data-emoji="😱" aria-label="React with shocked">😱</button>
+        <button data-emoji="❤️" aria-label="React with heart">❤️</button>
+      </div>
+      <button class="ghost" id="lightsBtn">Lights up</button>
+      <button class="ghost" id="fullBtn">Full screen</button>
+    </div>
+  </main>
+
+  <div class="under">
+    <div class="title-block">
+      <h2 id="titleLabel">No source yet</h2>
+      <div class="meta" id="metaLabel">Pick something to watch</div>
+    </div>
+    <div class="actions">
+      <button class="ghost js-mic" data-on="false">Join voice</button>
+      <button class="ghost js-cam" data-on="false" hidden>Camera</button>
+      <button id="startBtn" disabled>Start</button>
+    </div>
+  </div>
+
+  <aside class="side">
+
+    <div class="panel">
+      <span class="eyebrow">What are we watching</span>
+      <div class="src-tabs" role="tablist">
+        <button role="tab" id="tabLink" aria-selected="true" aria-controls="paneLink">Link</button>
+        <button role="tab" id="tabArchive" aria-selected="false" aria-controls="paneArchive">Archive</button>
+      </div>
+
+      <div class="src-pane" id="paneLink" role="tabpanel">
+        <div class="row">
+          <div class="field"><input id="srcInput" placeholder="YouTube or video URL" autocomplete="off" spellcheck="false"></div>
+          <button class="ghost" id="srcBtn">Set</button>
+        </div>
+        <p class="src-hint">YouTube links, or any URL ending in .mp4. Type <b>test</b> for the sync clock.</p>
+      </div>
+
+      <div class="src-pane" id="paneArchive" role="tabpanel" hidden>
+        <div class="row">
+          <div class="field"><input id="arcInput" placeholder="Search public-domain films" autocomplete="off"></div>
+          <button class="ghost" id="arcBtn">Search</button>
+        </div>
+        <ul class="results" id="arcResults"></ul>
+        <p class="src-hint" id="arcHint">Tens of thousands of films, free and cleared.</p>
+      </div>
+
+      <p class="notice err" id="srcNotice" hidden style="margin-top:11px"></p>
+    </div>
+
+    <div class="panel">
+      <span class="eyebrow">In the room</span>
+      <ul class="roster" id="roster"></ul>
+      <div class="voice-opts" id="voiceOpts" hidden>
+        <label class="check">
+          <input type="checkbox" id="pttToggle"> Push to talk — hold <b>T</b>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="muteToggle"> Mute my microphone
+        </label>
+        <p class="faint" style="font-size:.75rem;margin-top:8px">Headphones stop the film
+          leaking back into everyone else's audio.</p>
+      </div>
+      <p class="notice err" id="voiceNotice" hidden style="margin-top:11px"></p>
+    </div>
+
+    <div class="panel chat-panel">
+      <span class="eyebrow">Chat</span>
+      <div class="chat-log" id="chatLog"></div>
+      <form class="chat-form" id="chatForm">
+        <input id="chatInput" placeholder="Say something" maxlength="300" autocomplete="off">
+        <button class="ghost" type="submit">Send</button>
+      </form>
+    </div>
+
+  </aside>
+</div>
+
+<script type="module" src="/room.js"></script>
+</body>
+</html>

@@ -1,0 +1,467 @@
+/* ==========================================================================
+   The room. Two temperatures — foyer (lights up) and house (lights down) —
+   with one 900ms transition between them. That transition is the signature;
+   everything else stays quiet.
+   ========================================================================== */
+
+body { overflow-x: hidden; }
+
+.room {
+  --gutter: 20px;
+  --side: 300px;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr var(--side);
+  grid-template-rows: auto 1fr;
+  gap: 18px;
+  padding: var(--gutter);
+  background: var(--foyer);
+  transition:
+    background 900ms var(--ease),
+    grid-template-columns 900ms var(--ease),
+    gap 900ms var(--ease),
+    padding 900ms var(--ease);
+}
+
+/* Lights down. */
+.room[data-mode="house"] {
+  --gutter: 0px;
+  --side: 0px;
+  background: var(--ink);
+  gap: 0;
+}
+
+/* Coming back up is quicker — a pause is an interruption, and people need to
+   see each other again without waiting. */
+.room[data-mode="foyer"] { transition-duration: 400ms; }
+
+/* ------------------------------------------------------------------- head */
+
+.room-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  max-height: 60px;
+  opacity: 1;
+  transition: max-height 900ms var(--ease), opacity 420ms ease;
+}
+.room[data-mode="house"] .room-head { max-height: 0; opacity: 0; }
+
+.room-head .wordmark {
+  font-family: var(--display);
+  font-variation-settings: "wdth" 82;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.room-head .wordmark span { color: var(--lamp); }
+
+.code-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--foyer-raised);
+  border-radius: 3px;
+  padding: 7px 8px 7px 14px;
+}
+.code-chip .val {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  letter-spacing: 0.28em;
+  color: var(--brass);
+  user-select: all;
+}
+.head-spacer { flex: 1; }
+
+/* ------------------------------------------------------------------ stage */
+
+.stage-wrap {
+  position: relative;
+  min-width: 0;
+  align-self: start;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  transition: border-radius 900ms var(--ease);
+}
+.room[data-mode="house"] .stage-wrap { border-radius: 0; }
+
+.stage { position: absolute; inset: 0; }
+.stage iframe, .stage video { width: 100%; height: 100%; display: block; border: 0; }
+
+/* Dimmed while the lights are up, full while they're down. */
+.stage-wrap { filter: brightness(.66) saturate(.8); transition: filter 900ms var(--ease); }
+.room[data-mode="house"] .stage-wrap { filter: none; }
+
+.stage-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 24px;
+  background:
+    radial-gradient(90% 120% at 30% 20%, rgba(232, 163, 61, .10) 0%, rgba(232, 163, 61, 0) 60%),
+    linear-gradient(165deg, #1B1216 0%, #0A0908 100%);
+}
+.stage-empty h2 {
+  font-size: clamp(1.125rem, 3vw, 1.625rem);
+  font-variation-settings: "wdth" 86;
+}
+.stage-empty p { font-size: 0.9375rem; color: var(--muted); max-width: 34ch; margin: 0 auto; }
+.stage-empty[hidden] { display: none; }
+
+/* -------------------------------------------------------- interruption band
+   Never a modal: one person's problem must not stop the film for everyone. */
+
+.band {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 0.8125rem;
+  background: rgba(11, 9, 8, .93);
+  border-bottom: 1px solid rgba(232, 163, 61, .3);
+  transform: translateY(-100%);
+  transition: transform 420ms var(--ease);
+}
+.band.show { transform: none; }
+.band .right { margin-left: auto; font-family: var(--mono); font-size: 0.6875rem; color: var(--lamp); }
+
+/* ---------------------------------------------------------- presence rail */
+
+.rail {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 4;
+  display: flex;
+  gap: 7px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 480ms ease 380ms, transform 480ms var(--ease) 380ms;
+}
+.room[data-mode="house"] .rail { opacity: 1; transform: none; }
+
+.tile {
+  min-width: 38px;
+  height: 27px;
+  padding: 0 7px;
+  border-radius: 3px;
+  background: #221B18;
+  border: 1px solid #2E2723;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: #7A6D64;
+  transition: transform 240ms var(--ease), box-shadow 240ms ease,
+              border-color 240ms ease, color 240ms ease, opacity 240ms ease;
+}
+/* Presence rendered as light. */
+.tile.speaking {
+  transform: scale(1.08);
+  border-color: var(--lamp);
+  color: var(--lamp);
+  box-shadow: 0 0 0 1px rgba(232, 163, 61, .35), 0 0 18px rgba(232, 163, 61, .3);
+}
+.tile.behind { opacity: .45; }
+
+/* A tile grows into a video surface when that person turns their camera on,
+   so the rail is the only place faces ever live. */
+.tile .initials { pointer-events: none; }
+.tile.has-video { width: 96px; height: 54px; padding: 0; overflow: hidden; }
+.tile.has-video .initials { display: none; }
+.tile.has-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* --------------------------------------------------------- ephemeral chat */
+
+.floatchat {
+  position: absolute;
+  left: 14px;
+  bottom: 52px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(46ch, 60%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 420ms ease 500ms;
+}
+.room[data-mode="house"] .floatchat { opacity: 1; }
+
+.floatchat .line {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: rgba(242, 237, 228, .9);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .95);
+  animation: riseIn 320ms var(--ease);
+}
+.floatchat .line.leaving { animation: fadeOut 700ms ease forwards; }
+.floatchat .who { color: var(--lamp); }
+
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fadeOut { to { opacity: 0; } }
+
+/* ------------------------------------------------------------- reactions */
+
+.reactions { position: absolute; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
+.reactions .pop {
+  position: absolute;
+  bottom: 60px;
+  font-size: 30px;
+  animation: floatUp 2.4s ease-out forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(0) scale(.7); }
+  14% { opacity: 1; transform: translateY(-14px) scale(1.08); }
+  100% { opacity: 0; transform: translateY(-190px) scale(1); }
+}
+
+/* ---------------------------------------------------------------- sync dot */
+
+.sync {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 6;
+  opacity: 0;
+  transition: opacity 420ms ease 500ms;
+}
+.room[data-mode="house"] .sync { opacity: 1; }
+
+.sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(11, 9, 8, .6);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 7px 13px;
+  min-height: 0;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.sync-btn:hover { color: var(--screen); filter: none; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lamp); flex: 0 0 auto; }
+.sync-dot.warn { background: var(--fault); }
+
+.sync-panel {
+  position: absolute;
+  right: 0;
+  bottom: 44px;
+  width: 250px;
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 15px;
+  text-align: left;
+}
+.sync-panel[hidden] { display: none; }
+.sync-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0 0 13px; }
+.sync-panel dt { font-size: 0.75rem; color: var(--muted); }
+.sync-panel dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sync-panel label { font-size: 0.75rem; }
+.sync-panel input[type="range"] { width: 100%; min-height: 0; padding: 0; background: none; border: 0; }
+
+/* ----------------------------------------------------------- house controls
+   Auto-hide after three seconds of stillness. */
+
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 42px 14px 14px;
+  background: linear-gradient(transparent, rgba(11, 9, 8, .88));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+.room[data-mode="house"] .stage-wrap.awake .controls { opacity: 1; pointer-events: auto; }
+.room[data-mode="house"] .stage-wrap.awake { cursor: default; }
+.room[data-mode="house"] .stage-wrap { cursor: none; }
+
+.controls .clock {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+.controls .grow { flex: 1; }
+.controls button { min-height: 38px; padding: 9px 14px; }
+.react-strip { display: flex; gap: 2px; }
+.react-strip button { font-size: 17px; padding: 6px 8px; min-height: 34px; background: transparent; border: 0; }
+.react-strip button:hover { filter: none; transform: scale(1.2); }
+
+/* Hide the rail and chat behind the controls when they're up. */
+.room[data-mode="house"] .stage-wrap.awake .rail,
+.room[data-mode="house"] .stage-wrap.awake .floatchat { opacity: 0; }
+
+/* ------------------------------------------------------------- foyer under */
+
+.under {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  max-height: 120px;
+  opacity: 1;
+  transition: max-height 900ms var(--ease), opacity 420ms ease;
+}
+.room[data-mode="house"] .under { max-height: 0; opacity: 0; }
+
+.under .title-block { min-width: 0; flex: 1 1 240px; }
+.under h2 {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-variation-settings: "wdth" 84, "opsz" 30;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.under .meta { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.under .actions { display: flex; gap: 8px; flex: 0 0 auto; }
+
+/* ------------------------------------------------------------------- side */
+
+.side {
+  grid-row: 2;
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  opacity: 1;
+  transition: opacity 400ms ease;
+}
+.room[data-mode="house"] .side { opacity: 0; pointer-events: none; }
+
+.panel {
+  background: var(--foyer-raised);
+  border-radius: 4px;
+  padding: 14px;
+}
+.panel > .eyebrow { display: block; margin-bottom: 11px; }
+
+/* roster */
+.roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.roster li { display: flex; align-items: center; gap: 9px; font-size: 0.875rem; min-width: 0; }
+.roster .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster .st { margin-left: auto; font-family: var(--mono); font-size: 0.6875rem; color: var(--muted); flex: 0 0 auto; }
+.pip { width: 7px; height: 7px; border-radius: 50%; background: var(--lamp); flex: 0 0 auto; }
+.pip.wait { background: #5A4A44; }
+
+/* voice */
+.voice-opts { margin-top: 13px; padding-top: 12px; border-top: 1px solid rgba(242, 237, 228, .09); }
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--dim);
+  margin-bottom: 7px;
+  cursor: pointer;
+}
+.check input { width: auto; min-height: 0; margin: 0; accent-color: var(--brass); }
+.check b { color: var(--lamp); font-weight: 500; font-family: var(--mono); font-size: 0.75rem; }
+
+/* Live mic reads as light, the same as the rail. */
+button.js-mic[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
+button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
+
+/* chat */
+.chat-panel { flex: 1; display: flex; flex-direction: column; min-height: 160px; }
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 11px;
+  max-height: 40vh;
+}
+.chat-log .msg { font-size: 0.8125rem; line-height: 1.4; overflow-wrap: anywhere; }
+.chat-log .who { color: var(--lamp); }
+.chat-log .sys { color: var(--muted); font-style: italic; }
+.chat-form { display: flex; gap: 7px; }
+.chat-form input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; }
+.chat-form button { min-height: 40px; padding: 9px 13px; }
+
+/* source picker */
+.src-tabs { display: flex; gap: 4px; margin-bottom: 11px; }
+.src-tabs button {
+  flex: 1;
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+}
+.src-tabs button[aria-selected="true"] {
+  color: #1A0E13;
+  background: var(--brass);
+  border-color: var(--brass);
+}
+.src-pane[hidden] { display: none; }
+.src-pane .row { align-items: stretch; }
+.src-pane input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; }
+.src-pane button { min-height: 40px; padding: 9px 13px; }
+.src-hint { font-size: 0.75rem; color: var(--faint); margin-top: 8px; }
+
+.results { list-style: none; margin: 11px 0 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.results li { border-bottom: 1px solid rgba(242, 237, 228, .07); }
+.results li:last-child { border-bottom: 0; }
+.results button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 9px 4px;
+  min-height: 0;
+  color: var(--screen);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+.results button:hover { filter: none; color: var(--lamp); }
+.results .yr { font-family: var(--mono); font-size: 0.6875rem; color: var(--muted); display: block; margin-top: 2px; }
+
+/* ----------------------------------------------------------------- mobile */
+
+@media (max-width: 860px) {
+  .room, .room[data-mode="house"] { grid-template-columns: 1fr; }
+  .side { grid-column: 1; grid-row: auto; }
+  .room[data-mode="house"] .side { display: none; }
+  .chat-log { max-height: 30vh; }
+}

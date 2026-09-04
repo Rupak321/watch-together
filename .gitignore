@@ -1,0 +1,18 @@
+node_modules/
+
+# Local wrangler dev state — Durable Object storage, caches, build output.
+.wrangler/
+
+# Local secrets. Real ones live in `wrangler secret put`, never in the repo.
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+# Per-machine Claude Code settings.
+.claude/settings.local.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
