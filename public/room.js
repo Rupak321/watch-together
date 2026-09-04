@@ -477,6 +477,10 @@ function onPrepare(target) {
   desiredPlaying = false;
   pendingStart = null;
   source.pause();
+  // Keep the applied-state flag honest. Pausing here without recording it
+  // left it reading "playing", so the tick after PLAY_AT saw nothing to do
+  // and never started the player again.
+  playbackApplied = false;
   source.seek(target);
   if (corrector) corrector.reset();
 
