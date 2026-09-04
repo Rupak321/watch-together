@@ -115,7 +115,7 @@ function setupVoice() {
     onPeerStream: (id, stream) => {
       const tile = tiles.get(id);
       if (!tile) return;
-      const hasVideo = stream.getVideoTracks().some((t) => t.readyState === 'live');
+      const hasVideo = !!stream && stream.getVideoTracks().some((t) => t.readyState === 'live');
       tile.classList.toggle('has-video', hasVideo);
       if (!hasVideo) {
         tile.querySelector('video')?.remove();

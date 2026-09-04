@@ -117,10 +117,18 @@ export class VoiceMesh {
     // Ask for the browser's own echo cancellation. It only cancels audio
     // WebRTC itself rendered, never the film coming out of the speakers —
     // which is why the room still recommends headphones.
-    this.localStream = await navigator.mediaDevices.getUserMedia({
+    const mic = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false
     });
+
+    // Add to the existing stream rather than replacing it. Overwriting
+    // orphaned a camera track that was already running and split this
+    // client's media across two MediaStreams, which receivers then had to
+    // reconcile — and mostly got wrong.
+    if (!this.localStream) this.localStream = new MediaStream();
+    const added = mic.getAudioTracks();
+    for (const t of added) this.localStream.addTrack(t);
 
     this.micOn = true;
     this.applyMicGate();
@@ -129,7 +137,7 @@ export class VoiceMesh {
     await this.joinMesh();
     this.announce();
 
-    for (const track of this.localStream.getTracks()) {
+    for (const track of added) {
       for (const { pc } of this.peers.values()) pc.addTrack(track, this.localStream);
     }
   }
@@ -319,6 +327,7 @@ export class VoiceMesh {
         this.localStream?.removeTrack(track);
       }
       this.camOn = false;
+      this.hooks.onPeerStream?.(this.myId, null); // clear the local preview
       // Nothing left to contribute: stop claiming a place on the mesh unless
       // something else is still using it.
       if (!this.micOn && !this.screenStream && !this.receiveOnly) this.leaveMesh();
@@ -549,27 +558,60 @@ export class VoiceMesh {
   }
 
   attachRemote(id, stream) {
-    // A WebRTC stream needs a media element attached before audio flows,
-    // even when Web Audio is also reading it.
-    let audio = document.getElementById(`peer-audio-${id}`);
-    if (!audio) {
-      audio = document.createElement('audio');
-      audio.id = `peer-audio-${id}`;
-      audio.autoplay = true;
-      audio.hidden = true;
-      document.body.appendChild(audio);
-    }
-    if (audio.srcObject !== stream) audio.srcObject = stream;
-    audio.volume = this.peerVolume ?? 1;
-    audio.play().catch(() => {});
-
     const entry = this.peers.get(id);
-    if (entry && !entry.meter && stream.getAudioTracks().length) {
-      this.ensureAudioContext();
-      entry.meter = this.makeMeter(stream);
+    if (!entry) return;
+    if (!entry.streams.some((s) => s.id === stream.id)) entry.streams.push(stream);
+
+    // A camera switched on after the connection exists arrives as a new track
+    // on a stream we already hold, which fires no fresh ontrack.
+    if (!stream.__wired) {
+      stream.__wired = true;
+      const again = () => this.refreshPeerMedia(id);
+      stream.addEventListener('addtrack', again);
+      stream.addEventListener('removetrack', again);
     }
 
-    this.hooks.onPeerStream?.(id, stream);
+    this.refreshPeerMedia(id);
+  }
+
+  /**
+   * Bind a peer's audio and video from whichever of their streams carries it.
+   *
+   * A peer can send audio and video under two different MediaStreams. This
+   * used to assume one stream per peer and point the <audio> element at
+   * whichever arrived last — so an audio-only stream landing second replaced
+   * the video and the camera vanished at the far end.
+   */
+  refreshPeerMedia(id) {
+    const entry = this.peers.get(id);
+    if (!entry) return;
+
+    const live = (t) => t.readyState === 'live';
+    const audioStream = entry.streams.find((s) => s.getAudioTracks().some(live));
+    const videoStream = entry.streams.find((s) => s.getVideoTracks().some(live));
+
+    if (audioStream) {
+      // A WebRTC stream needs a media element attached before audio flows,
+      // even when Web Audio is also reading it.
+      let audio = document.getElementById(`peer-audio-${id}`);
+      if (!audio) {
+        audio = document.createElement('audio');
+        audio.id = `peer-audio-${id}`;
+        audio.autoplay = true;
+        audio.hidden = true;
+        document.body.appendChild(audio);
+      }
+      if (audio.srcObject !== audioStream) audio.srcObject = audioStream;
+      audio.volume = this.peerVolume ?? 1;
+      audio.play().catch(() => {});
+
+      if (!entry.meter) {
+        this.ensureAudioContext();
+        entry.meter = this.makeMeter(audioStream);
+      }
+    }
+
+    this.hooks.onPeerStream?.(id, videoStream || null);
   }
 
   dropPeer(id) {
