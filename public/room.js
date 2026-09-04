@@ -336,6 +336,10 @@ function handle(m) {
       return;
 
     case 'history':
+      // History is authoritative and arrives on every hello — including the
+      // hello after a reconnect. Appending it would print the whole
+      // conversation again each time the socket dropped.
+      el('chatLog').innerHTML = '';
       for (const c of m.messages || []) addChat(c.name, c.text, true);
       return;
 
