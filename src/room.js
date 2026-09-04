@@ -21,7 +21,12 @@ function defaultState() {
     rate: 1,
     source: null,            // { kind, id } — set by whoever picks the video
     phase: 'idle',           // 'idle' | 'preparing' | 'playing'
-    pendingTarget: 0
+    pendingTarget: 0,
+
+    // Whoever opens the room. Keyed off a value the browser keeps, not the
+    // connection id, so a refresh does not hand the room to someone else.
+    hostKey: null,
+    pausePolicy: 'anyone'    // 'anyone' | 'host'
   };
 }
 
@@ -61,7 +66,8 @@ export class Room {
         ready: false,
         drift: null,
         buffered: 0,
-        voice: false
+        mesh: false,
+        mic: false
       });
 
       return new Response(null, { status: 101, webSocket: client });
@@ -90,9 +96,16 @@ export class Room {
         const named = !!att.named;
         att.name = String(msg.name || 'guest').slice(0, 24);
         att.named = true;
+        att.key = String(msg.key || '').slice(0, 64);
+
+        // First person through the door owns the room.
+        if (!this.state.hostKey && att.key) {
+          this.state.hostKey = att.key;
+          await this.save();
+        }
         ws.serializeAttachment(att);
 
-        ws.send(JSON.stringify({ t: 'you', id: att.id }));
+        ws.send(JSON.stringify({ t: 'you', id: att.id, host: this.isHost(ws) }));
         ws.send(JSON.stringify({ t: 'state', ...this.publicState() }));
         ws.send(JSON.stringify({ t: 'history', messages: this.chat }));
 
@@ -134,10 +147,13 @@ export class Room {
         return;
       }
 
-      // Voice presence, so peers know who to dial and the rail knows who is live.
-      case 'voice': {
+      // `mesh` says a peer connection should exist; `mic` says they are
+      // actually sending audio. Someone watching a shared screen needs the
+      // first without the second.
+      case 'presence': {
         const att = ws.deserializeAttachment() || {};
-        att.voice = !!msg.on;
+        att.mesh = !!msg.mesh;
+        att.mic = !!msg.mic;
         ws.serializeAttachment(att);
         this.broadcastRoster();
         return;
@@ -154,11 +170,30 @@ export class Room {
         return;
       }
 
+      case 'settings': {
+        if (!this.isHost(ws)) return;
+        if (msg.pausePolicy === 'anyone' || msg.pausePolicy === 'host') {
+          this.state.pausePolicy = msg.pausePolicy;
+          await this.save();
+          this.broadcast({ t: 'state', ...this.publicState() });
+          this.broadcast({
+            t: 'system',
+            text:
+              msg.pausePolicy === 'host'
+                ? 'Only the host can control playback now'
+                : 'Anyone can control playback now'
+          });
+        }
+        return;
+      }
+
       case 'play':
+        if (!this.canControl(ws)) return this.denied(ws);
         await this.beginReadyCheck(this.currentTarget());
         return;
 
       case 'pause': {
+        if (!this.canControl(ws)) return this.denied(ws);
         this.state.anchorTime = this.currentTarget();
         this.state.anchorClock = Date.now();
         this.state.playing = false;
@@ -170,6 +205,7 @@ export class Room {
       }
 
       case 'seek':
+        if (!this.canControl(ws)) return this.denied(ws);
         await this.beginReadyCheck(Math.max(0, Number(msg.time) || 0));
         return;
 
@@ -231,6 +267,7 @@ export class Room {
       rate: this.state.rate,
       source: this.state.source,
       phase: this.state.phase,
+      pausePolicy: this.state.pausePolicy,
       serverClock: Date.now()
     };
   }
@@ -282,6 +319,22 @@ export class Room {
     return (ws.deserializeAttachment() || {}).name || 'guest';
   }
 
+  isHost(ws) {
+    const key = (ws.deserializeAttachment() || {}).key;
+    return !!key && key === this.state.hostKey;
+  }
+
+  canControl(ws) {
+    return this.state.pausePolicy !== 'host' || this.isHost(ws);
+  }
+
+  /** Say why, rather than letting a dead button look broken. */
+  denied(ws) {
+    try {
+      ws.send(JSON.stringify({ t: 'denied', reason: 'Only the host can control playback in this room.' }));
+    } catch {}
+  }
+
   broadcastRoster() {
     const peers = this.ctx.getWebSockets().map((ws) => {
       const a = ws.deserializeAttachment() || {};
@@ -291,7 +344,9 @@ export class Room {
         ready: !!a.ready,
         drift: a.drift ?? null,
         buffered: a.buffered || 0,
-        voice: !!a.voice
+        mesh: !!a.mesh,
+        mic: !!a.mic,
+        host: !!a.key && a.key === this.state.hostKey
       };
     });
     this.broadcast({ t: 'roster', peers });

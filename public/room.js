@@ -19,13 +19,17 @@ let ticker = null;
 let roomCode = '';
 let myName = 'guest';
 let myId = null;
+let isHost = false;
 let voice = null;
 let nudgeMs = 0;
 let loadedKey = null;
 let readyTimer = null;
 let controlsTimer = null;
 
-let roomState = { playing: false, anchorTime: 0, anchorClock: Date.now(), rate: 1, source: null, phase: 'idle' };
+let roomState = {
+  playing: false, anchorTime: 0, anchorClock: Date.now(), rate: 1,
+  source: null, phase: 'idle', pausePolicy: 'anyone'
+};
 let pendingStart = null;
 let desiredPlaying = false;
 
@@ -179,6 +183,27 @@ document.addEventListener('keyup', (e) => {
   if (e.code === 'KeyT') voice?.setPttHeld(false);
 });
 
+/**
+ * A stable per-browser id, so host survives a refresh.
+ *
+ * Connection ids change on every reconnect — keying the host off one would
+ * hand the room to whoever happened to be connected when the host reloaded.
+ */
+function clientKey() {
+  try {
+    let k = localStorage.getItem('wt:key');
+    if (!k) {
+      k = crypto.randomUUID();
+      localStorage.setItem('wt:key', k);
+    }
+    return k;
+  } catch {
+    // Private browsing with storage blocked: host simply won't persist.
+    if (!clientKey.fallback) clientKey.fallback = crypto.randomUUID();
+    return clientKey.fallback;
+  }
+}
+
 // -------------------------------------------------------------- connection
 
 function connect() {
@@ -187,7 +212,7 @@ function connect() {
 
   ws.addEventListener('open', () => {
     setConn('connected');
-    send({ t: 'hello', name: myName });
+    send({ t: 'hello', name: myName, key: clientKey() });
     schedulePing();
   });
   ws.addEventListener('message', (e) => {
@@ -226,7 +251,15 @@ function handle(m) {
   switch (m.t) {
     case 'you':
       myId = m.id;
+      isHost = !!m.host;
       voice?.setMyId(myId);
+      renderHostControls();
+      return;
+
+    case 'denied':
+      el('voiceNotice').textContent = m.reason;
+      el('voiceNotice').hidden = false;
+      setTimeout(() => (el('voiceNotice').hidden = true), 4000);
       return;
 
     case 'signal':
@@ -309,6 +342,9 @@ async function loadSource(s) {
       el('stageEmpty').hidden = false;
       el('stageEmpty').querySelector('h2').textContent = 'Connecting to the shared screen';
       el('stageEmpty').querySelector('p').textContent = 'This starts as soon as the video reaches you.';
+      // Receiving a screen needs a peer connection, which needs this client
+      // on the mesh — but it does not need a microphone. Join to listen.
+      voice?.watchOnly().catch(() => {});
     }
     return;
   }
@@ -510,8 +546,28 @@ function setMode(mode) {
 function renderState() {
   el('playBtn').textContent = roomState.playing ? 'Pause' : 'Play';
   el('startBtn').textContent = roomState.playing ? 'Playing' : 'Start';
-  el('startBtn').disabled = !source || roomState.playing;
+
+  // A control you are not allowed to use should look that way, rather than
+  // silently doing nothing when pressed.
+  const mayControl = roomState.pausePolicy !== 'host' || isHost;
+  el('startBtn').disabled = !source || roomState.playing || !mayControl;
+  el('playBtn').disabled = !mayControl;
+  el('seekBtn') && (el('seekBtn').disabled = !mayControl);
+
+  renderHostControls();
 }
+
+function renderHostControls() {
+  el('hostOpts').hidden = !isHost;
+  el('policyNote').hidden = isHost || roomState.pausePolicy !== 'host';
+  if (el('pausePolicy').value !== roomState.pausePolicy) {
+    el('pausePolicy').value = roomState.pausePolicy || 'anyone';
+  }
+}
+
+el('pausePolicy').addEventListener('change', (e) => {
+  send({ t: 'settings', pausePolicy: e.target.value });
+});
 
 // ----------------------------------------------------------------- roster
 
@@ -533,7 +589,7 @@ function renderRoster(peers) {
 
     const li = document.createElement('li');
     const pip = document.createElement('span');
-    pip.className = 'pip' + (p.voice ? '' : ' wait');
+    pip.className = 'pip' + (p.mic ? '' : ' wait');
     const nm = document.createElement('span');
     nm.className = 'nm';
     nm.textContent = p.name + (p.id === myId ? ' (you)' : '');
@@ -544,7 +600,7 @@ function renderRoster(peers) {
     // "loading" for somebody who is simply sitting in the foyer is a lie.
     const lag = p.drift === null ? 0 : -p.drift;
     if (roomState.phase === 'preparing') st.textContent = p.ready ? 'ready' : 'buffering';
-    else if (!roomState.playing) st.textContent = p.voice ? 'on voice' : 'here';
+    else if (!roomState.playing) st.textContent = p.mic ? 'on voice' : p.mesh ? 'watching' : 'here';
     else if (lag > BEHIND_S) st.textContent = `${lag.toFixed(1)}s behind`;
     else st.textContent = 'in sync';
 

@@ -159,6 +159,16 @@
         <p class="faint" style="font-size:.75rem;margin-top:8px">Headphones stop the film
           leaking back into everyone else's audio.</p>
       </div>
+      <div class="voice-opts" id="hostOpts" hidden>
+        <span class="eyebrow" style="display:block;margin-bottom:9px">Room settings · host</span>
+        <label class="check" for="pausePolicy" style="display:block;margin-bottom:5px">Who can play, pause and seek</label>
+        <select id="pausePolicy">
+          <option value="anyone">Anyone in the room</option>
+          <option value="host">Only me</option>
+        </select>
+      </div>
+      <p class="faint" id="policyNote" hidden style="font-size:.75rem;margin-top:10px">
+        The host controls playback in this room.</p>
       <p class="notice err" id="voiceNotice" hidden style="margin-top:11px"></p>
     </div>
 

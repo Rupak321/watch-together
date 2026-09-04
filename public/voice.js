@@ -76,8 +76,20 @@ export class VoiceMesh {
     await this.loadIceServers();
     this.ensureAudioContext();
     this.startLoop();
-    this.send({ t: 'voice', on: true });
+    this.announce();
     this.dialKnownPeers();
+  }
+
+  /**
+   * Two separate facts, deliberately.
+   *
+   * `mesh` is whether a peer connection should exist at all; `mic` is whether
+   * they are actually sending audio. Someone watching a shared screen needs
+   * the first and not the second, and conflating them meant a viewer with no
+   * microphone silently dropped every incoming offer.
+   */
+  announce() {
+    this.send({ t: 'presence', mesh: this.onMesh, mic: this.micOn });
   }
 
   /** True while this client has anything to contribute to the mesh. */
@@ -101,6 +113,7 @@ export class VoiceMesh {
     this.meterLocal();
 
     await this.joinMesh();
+    this.announce();
 
     for (const track of this.localStream.getTracks()) {
       for (const { pc } of this.peers.values()) pc.addTrack(track, this.localStream);
@@ -203,18 +216,28 @@ export class VoiceMesh {
     this.speaking.delete(this.myId);
     this.hooks.onSpeaking?.(this.myId, false);
 
-    if (!this.sharing) this.leaveMesh();
+    // Stay on the mesh if a screen share is running over it, or if this
+    // client is only here to receive one. Just stop claiming a live mic.
+    if (this.screenStream || this.receiveOnly) this.announce();
+    else this.leaveMesh();
+  }
+
+  /** Join purely to receive — no microphone, no camera, nothing sent. */
+  async watchOnly() {
+    this.receiveOnly = true;
+    await this.joinMesh();
   }
 
   leaveMesh() {
     if (!this.onMesh) return;
     this.onMesh = false;
+    this.receiveOnly = false;
     for (const id of [...this.peers.keys()]) this.dropPeer(id);
     this.speaking.clear();
     this.duckTarget = 1;
     this.duckLevel = 1;
     this.hooks.onDuck?.(1);
-    this.send({ t: 'voice', on: false });
+    this.send({ t: 'presence', mesh: false, mic: false });
   }
 
   async loadIceServers() {
@@ -351,12 +374,12 @@ export class VoiceMesh {
     for (const id of [...this.peers.keys()]) {
       if (!this.known.has(id)) this.dropPeer(id);
     }
-    if (this.micOn) this.dialKnownPeers();
+    if (this.onMesh) this.dialKnownPeers();
   }
 
   dialKnownPeers() {
     for (const [id, p] of this.known) {
-      if (p.voice && !this.peers.has(id)) this.openPeer(id);
+      if (p.mesh && !this.peers.has(id)) this.openPeer(id);
     }
   }
 
@@ -428,7 +451,11 @@ export class VoiceMesh {
   }
 
   async onSignal(from, data) {
-    if (!this.micOn) return;
+    // Gated on being on the mesh, never on having a microphone. This check
+    // used to read `!this.micOn`, which meant anyone who had not clicked
+    // "Join voice" silently discarded every incoming offer — so a shared
+    // screen reached nobody but the person sharing it.
+    if (!this.onMesh) return;
     const entry = this.peers.get(from) || this.openPeer(from);
     const { pc } = entry;
 
