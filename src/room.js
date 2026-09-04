@@ -109,8 +109,12 @@ export class Room {
         ws.send(JSON.stringify({ t: 'state', ...this.publicState() }));
         ws.send(JSON.stringify({ t: 'history', messages: this.chat }));
 
-        // Only on a first hello — a reconnect shouldn't re-announce them.
-        if (!named) this.broadcast({ t: 'system', text: `${att.name} joined` });
+        // Announce only if this person is not already in the room under
+        // another socket. `named` was per-socket, so a reconnect — which is
+        // always a fresh socket — re-announced them every time.
+        if (!named && !this.hasOtherSocketFor(ws, att.key)) {
+          this.broadcast({ t: 'system', text: `${att.name} joined` });
+        }
         this.broadcastRoster();
         return;
       }
@@ -234,10 +238,33 @@ export class Room {
   }
 
   webSocketClose(ws) {
-    // The socket is already closing; roster goes out to whoever is left.
-    const name = this.nameOf(ws);
-    this.broadcast({ t: 'system', text: `${name} left` });
+    const att = ws.deserializeAttachment() || {};
+
+    // A reconnect closes the old socket after opening the new one, so only
+    // call it a departure when nothing else of theirs is still connected.
+    if (!this.hasOtherSocketFor(ws, att.key)) {
+      this.broadcast({ t: 'system', text: `${att.name || 'guest'} left` });
+    }
+
+    // A shared screen dies with the person sharing it. Leaving the source in
+    // place strands everyone else on "Connecting to the shared screen".
+    if (this.state.source?.kind === 'screen' && this.state.source.id === att.id) {
+      this.state.source = null;
+      this.state.playing = false;
+      this.state.phase = 'idle';
+      this.ctx.waitUntil(this.save());
+      this.broadcast({ t: 'state', ...this.publicState() });
+    }
+
     this.broadcastRoster();
+  }
+
+  /** Is this person present under some other socket? (i.e. a reconnect) */
+  hasOtherSocketFor(ws, key) {
+    if (!key) return false;
+    return this.ctx
+      .getWebSockets()
+      .some((s) => s !== ws && (s.deserializeAttachment() || {}).key === key);
   }
 
   webSocketError(ws) {
