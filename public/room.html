@@ -92,6 +92,17 @@
         <button data-emoji="😱" aria-label="React with shocked">😱</button>
         <button data-emoji="❤️" aria-label="React with heart">❤️</button>
       </div>
+      <div class="vol-wrap">
+        <button class="ghost" id="volBtn" aria-expanded="false">Volume</button>
+        <div class="vol-panel" id="volPanel" hidden>
+          <div class="mixer">
+            <label for="movieVol2">Film <span class="mono" data-volval="movie">100%</span></label>
+            <input type="range" id="movieVol2" data-vol="movie" min="0" max="100" step="5" value="100">
+            <label for="voiceVol2">Voices <span class="mono" data-volval="voice">100%</span></label>
+            <input type="range" id="voiceVol2" data-vol="voice" min="0" max="100" step="5" value="100">
+          </div>
+        </div>
+      </div>
       <button class="ghost" id="lightsBtn">Lights up</button>
       <button class="ghost" id="fullBtn">Full screen</button>
     </div>
@@ -175,10 +186,10 @@
     <div class="panel">
       <span class="eyebrow">Audio</span>
       <div class="mixer">
-        <label for="movieVol">Film <span class="mono" id="movieVolVal">100%</span></label>
-        <input type="range" id="movieVol" min="0" max="100" step="5" value="100">
-        <label for="voiceVol">Voices <span class="mono" id="voiceVolVal">100%</span></label>
-        <input type="range" id="voiceVol" min="0" max="100" step="5" value="100">
+        <label for="movieVol">Film <span class="mono" data-volval="movie">100%</span></label>
+        <input type="range" id="movieVol" data-vol="movie" min="0" max="100" step="5" value="100">
+        <label for="voiceVol">Voices <span class="mono" data-volval="voice">100%</span></label>
+        <input type="range" id="voiceVol" data-vol="voice" min="0" max="100" step="5" value="100">
       </div>
     </div>
 

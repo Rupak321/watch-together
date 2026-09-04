@@ -398,6 +398,21 @@ body { overflow-x: hidden; }
 button.js-mic[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 
+/* volume popover — the side panel is gone once the lights are down, which is
+   exactly when someone reaches for the volume */
+.vol-wrap { position: relative; }
+.vol-panel {
+  position: absolute;
+  right: 0;
+  bottom: 46px;
+  width: 210px;
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: left;
+}
+
 /* mixer */
 .mixer label {
   display: flex;

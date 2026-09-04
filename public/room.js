@@ -600,10 +600,16 @@ function renderHostControls() {
 
 // ------------------------------------------------------------------ mixer
 
+// The same two controls appear in the foyer panel and in the popover over the
+// film. Driving every copy from one setter keeps them from disagreeing.
+function paintVol(which, pct) {
+  for (const s of document.querySelectorAll(`[data-vol="${which}"]`)) s.value = String(pct);
+  for (const l of document.querySelectorAll(`[data-volval="${which}"]`)) l.textContent = `${pct}%`;
+}
+
 function setMovieVolume(pct) {
   movieVolume = pct / 100;
-  el('movieVol').value = String(pct);
-  el('movieVolVal').textContent = `${pct}%`;
+  paintVol('movie', pct);
   applyMovieVolume();
   try {
     localStorage.setItem('wt:vol:movie', String(movieVolume));
@@ -612,16 +618,24 @@ function setMovieVolume(pct) {
 
 function setVoiceVolume(pct) {
   const v = pct / 100;
-  el('voiceVol').value = String(pct);
-  el('voiceVolVal').textContent = `${pct}%`;
+  paintVol('voice', pct);
   voice?.setPeerVolume(v);
   try {
     localStorage.setItem('wt:vol:voice', String(v));
   } catch {}
 }
 
-el('movieVol').addEventListener('input', (e) => setMovieVolume(Number(e.target.value)));
-el('voiceVol').addEventListener('input', (e) => setVoiceVolume(Number(e.target.value)));
+document.addEventListener('input', (e) => {
+  const which = e.target.dataset?.vol;
+  if (which === 'movie') setMovieVolume(Number(e.target.value));
+  else if (which === 'voice') setVoiceVolume(Number(e.target.value));
+});
+
+el('volBtn').addEventListener('click', () => {
+  const p = el('volPanel');
+  p.hidden = !p.hidden;
+  el('volBtn').setAttribute('aria-expanded', String(!p.hidden));
+});
 
 el('pausePolicy').addEventListener('change', (e) => {
   send({ t: 'settings', pausePolicy: e.target.value });
