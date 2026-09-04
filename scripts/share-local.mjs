@@ -47,6 +47,26 @@ if (!existsSync(dir)) {
   process.exit(1);
 }
 
+/**
+ * Find cloudflared even when it is not on PATH.
+ *
+ * winget adds it to PATH, but a terminal that was already open when it
+ * installed will not see it — and that is exactly the terminal someone runs
+ * this from, minutes after installing.
+ */
+function findCloudflared() {
+  const candidates = [
+    join(process.env['ProgramFiles'] || '', 'cloudflared', 'cloudflared.exe'),
+    join(process.env['ProgramFiles(x86)'] || '', 'cloudflared', 'cloudflared.exe'),
+    join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'cloudflared.exe'),
+    '/usr/local/bin/cloudflared',
+    '/usr/bin/cloudflared',
+    '/opt/homebrew/bin/cloudflared'
+  ];
+  for (const c of candidates) if (c && existsSync(c)) return c;
+  return 'cloudflared'; // fall back to PATH
+}
+
 const server = createServer((req, res) => {
   const name = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
 
@@ -103,15 +123,17 @@ server.listen(PORT, () => {
   console.log(`Serving ${dir} on http://localhost:${PORT}`);
   console.log('Opening a public tunnel…\n');
 
-  const cf = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: process.platform === 'win32'
+  const cf = spawn(findCloudflared(), ['tunnel', '--url', `http://localhost:${PORT}`], {
+    stdio: ['ignore', 'pipe', 'pipe']
   });
+
+  let sawUrl = false;
 
   const watch = (chunk) => {
     const text = chunk.toString();
     const url = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i)?.[0];
     if (!url) return;
+    sawUrl = true;
 
     const files = readdirSync(dir).filter((f) => TYPES[extname(f).toLowerCase()]);
     console.log('\n  Paste one of these into the room\'s Link box:\n');
@@ -123,9 +145,21 @@ server.listen(PORT, () => {
   cf.stdout.on('data', watch);
   cf.stderr.on('data', watch); // cloudflared prints the URL to stderr
 
-  cf.on('error', () => {
-    console.error('\ncloudflared is not installed. On Windows:');
-    console.error('  winget install --id Cloudflare.cloudflared\n');
+  cf.on('error', (err) => {
+    console.error(`\nCould not start cloudflared: ${err.message}`);
+    console.error('Install it with:  winget install --id Cloudflare.cloudflared\n');
+    server.close();
+    process.exit(1);
+  });
+
+  // Without this the tunnel could die and leave the server sitting there with
+  // no public URL and no explanation — which looks exactly like the script
+  // working, right up until nothing can reach it.
+  cf.on('exit', (code) => {
+    if (sawUrl) return;
+    console.error(`\ncloudflared stopped (exit ${code}) before giving out a link.`);
+    console.error('If it was just installed, open a NEW terminal so it is on your PATH.\n');
+    server.close();
     process.exit(1);
   });
 
