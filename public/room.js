@@ -164,8 +164,10 @@ function renderVoiceButtons() {
     b.dataset.on = String(on);
     b.textContent = on ? 'On voice' : 'Join voice';
   }
+  // Camera stands on its own — being seen without being heard is a normal
+  // thing to want, so this button is never gated behind the microphone.
   for (const b of document.querySelectorAll('.js-cam')) {
-    b.hidden = !on;
+    b.hidden = false;
     b.dataset.on = String(!!voice?.camOn);
     b.textContent = voice?.camOn ? 'Camera on' : 'Camera';
   }

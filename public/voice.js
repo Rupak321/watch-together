@@ -208,11 +208,11 @@ export class VoiceMesh {
   disableMic() {
     if (!this.micOn) return;
     this.micOn = false;
-    this.camOn = false;
 
-    // Pull only this client's own tracks. Tearing the peer connections down
-    // would also kill a screen share running over them.
-    for (const track of this.localStream?.getTracks() || []) {
+    // Audio tracks only. Tearing down the peer connections would kill a
+    // screen share running over them, and pulling every track would switch
+    // off a camera the person never asked to turn off.
+    for (const track of this.localStream?.getAudioTracks() || []) {
       for (const { pc } of this.peers.values()) {
         const sender = pc.getSenders().find((s) => s.track === track);
         if (sender) {
@@ -222,17 +222,18 @@ export class VoiceMesh {
         }
       }
       track.stop();
+      this.localStream.removeTrack(track);
     }
-    this.localStream = null;
+    if (!this.localStream?.getTracks().length) this.localStream = null;
     this.localMeter?.disconnect();
     this.localMeter = null;
 
     this.speaking.delete(this.myId);
     this.hooks.onSpeaking?.(this.myId, false);
 
-    // Stay on the mesh if a screen share is running over it, or if this
-    // client is only here to receive one. Just stop claiming a live mic.
-    if (this.screenStream || this.receiveOnly) this.announce();
+    // Stay on the mesh if anything else is still using it — a screen share, a
+    // camera, or simply receiving one. Just stop claiming a live mic.
+    if (this.screenStream || this.camOn || this.receiveOnly) this.announce();
     else this.leaveMesh();
   }
 
@@ -298,20 +299,29 @@ export class VoiceMesh {
 
   // ---------------------------------------------------------------- camera
 
+  /**
+   * Camera is independent of the microphone — plenty of people want to be
+   * seen without being heard. Gated on the mesh, never on `micOn`.
+   */
   async setCamera(on, playing) {
-    if (!this.micOn || this.camOn === on) return;
+    if (this.camOn === on) return;
+    if (on) await this.joinMesh();
+    else if (!this.onMesh) return;
 
     if (!on) {
-      const track = this.localStream.getVideoTracks()[0];
+      const track = this.localStream?.getVideoTracks()[0];
       if (track) {
         for (const { pc } of this.peers.values()) {
           const sender = pc.getSenders().find((s) => s.track === track);
           if (sender) pc.removeTrack(sender);
         }
         track.stop();
-        this.localStream.removeTrack(track);
+        this.localStream?.removeTrack(track);
       }
       this.camOn = false;
+      // Nothing left to contribute: stop claiming a place on the mesh unless
+      // something else is still using it.
+      if (!this.micOn && !this.screenStream && !this.receiveOnly) this.leaveMesh();
       return;
     }
 
@@ -324,6 +334,9 @@ export class VoiceMesh {
       }
     });
     const track = cam.getVideoTracks()[0];
+
+    // A camera-only client has no microphone stream to hang this on.
+    if (!this.localStream) this.localStream = new MediaStream();
     this.localStream.addTrack(track);
 
     for (const { pc } of this.peers.values()) {
