@@ -39,6 +39,9 @@ export class VoiceMesh {
     this.known = new Map();      // id -> name, from the roster
 
     this.localStream = null;
+    this.screenStream = null;
+    this.screenStreamId = null;   // the id we expect a shared screen to arrive under
+    this.onMesh = false;
     this.audioCtx = null;
     this.iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
 
@@ -60,6 +63,28 @@ export class VoiceMesh {
 
   // ------------------------------------------------------------- lifecycle
 
+  /**
+   * Bring up the mesh itself, independent of what will be sent over it.
+   *
+   * Screen sharing has to be able to start this without a microphone —
+   * "turn your mic on before you can share your screen" is not a real
+   * requirement, just an artefact of bundling the two together.
+   */
+  async joinMesh() {
+    if (this.onMesh) return;
+    this.onMesh = true;
+    await this.loadIceServers();
+    this.ensureAudioContext();
+    this.startLoop();
+    this.send({ t: 'voice', on: true });
+    this.dialKnownPeers();
+  }
+
+  /** True while this client has anything to contribute to the mesh. */
+  get sharing() {
+    return this.micOn || !!this.screenStream;
+  }
+
   async enableMic() {
     if (this.micOn) return;
 
@@ -73,18 +98,84 @@ export class VoiceMesh {
 
     this.micOn = true;
     this.applyMicGate();
-
-    await this.loadIceServers();
-    this.ensureAudioContext();
     this.meterLocal();
-    this.startLoop();
+
+    await this.joinMesh();
 
     for (const track of this.localStream.getTracks()) {
       for (const { pc } of this.peers.values()) pc.addTrack(track, this.localStream);
     }
+  }
 
-    this.send({ t: 'voice', on: true });
-    this.dialKnownPeers();
+  // ---------------------------------------------------------- screen share
+
+  /**
+   * Capture a screen or tab and push it to every peer.
+   *
+   * `audio: true` matters more than it looks: on Chromium, sharing a tab can
+   * carry that tab's audio, which is the difference between sharing a film
+   * and sharing a silent film.
+   */
+  async startScreenShare() {
+    if (this.screenStream) return this.screenStream;
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30 } },
+      audio: true
+    });
+    this.screenStream = stream;
+
+    await this.joinMesh();
+
+    for (const { pc } of this.peers.values()) {
+      for (const track of stream.getTracks()) {
+        const sender = pc.addTrack(track, stream);
+        if (track.kind === 'video') this.capSender(sender, 2_500_000);
+      }
+    }
+
+    // The browser draws its own "Stop sharing" bar, and people use it — so
+    // that has to end the share properly rather than leave a dead source.
+    stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+      this.stopScreenShare();
+      this.hooks.onScreenEnded?.();
+    });
+
+    return stream;
+  }
+
+  stopScreenShare() {
+    const stream = this.screenStream;
+    if (!stream) return;
+    this.screenStream = null;
+
+    for (const { pc } of this.peers.values()) {
+      for (const sender of pc.getSenders()) {
+        if (sender.track && stream.getTracks().includes(sender.track)) {
+          try {
+            pc.removeTrack(sender);
+          } catch {}
+        }
+      }
+    }
+    stream.getTracks().forEach((t) => t.stop());
+  }
+
+  /**
+   * Which incoming stream is the shared screen.
+   *
+   * A MediaStream's id travels in the SDP, so the presenter can announce it
+   * through the room and every receiver can tell a screen apart from a
+   * webcam without guessing from track order or resolution.
+   */
+  setExpectedScreenStream(streamId) {
+    this.screenStreamId = streamId || null;
+    if (!streamId) return;
+    // A stream that already arrived may only now be identifiable.
+    for (const [id, entry] of this.peers) {
+      const found = entry.streams?.find((s) => s.id === streamId);
+      if (found) this.hooks.onScreenStream?.(id, found);
+    }
   }
 
   disableMic() {
@@ -92,14 +183,38 @@ export class VoiceMesh {
     this.micOn = false;
     this.camOn = false;
 
-    for (const id of [...this.peers.keys()]) this.dropPeer(id);
-    this.localStream?.getTracks().forEach((t) => t.stop());
+    // Pull only this client's own tracks. Tearing the peer connections down
+    // would also kill a screen share running over them.
+    for (const track of this.localStream?.getTracks() || []) {
+      for (const { pc } of this.peers.values()) {
+        const sender = pc.getSenders().find((s) => s.track === track);
+        if (sender) {
+          try {
+            pc.removeTrack(sender);
+          } catch {}
+        }
+      }
+      track.stop();
+    }
     this.localStream = null;
+    this.localMeter?.disconnect();
+    this.localMeter = null;
 
+    this.speaking.delete(this.myId);
+    this.hooks.onSpeaking?.(this.myId, false);
+
+    if (!this.sharing) this.leaveMesh();
+  }
+
+  leaveMesh() {
+    if (!this.onMesh) return;
+    this.onMesh = false;
+    for (const id of [...this.peers.keys()]) this.dropPeer(id);
     this.speaking.clear();
     this.duckTarget = 1;
+    this.duckLevel = 1;
+    this.hooks.onDuck?.(1);
     this.send({ t: 'voice', on: false });
-    this.hooks.onSpeaking?.(this.myId, false);
   }
 
   async loadIceServers() {
@@ -250,11 +365,24 @@ export class VoiceMesh {
 
     // Perfect negotiation: exactly one side must yield when both offer at
     // once. Comparing ids gives both ends the same answer without a round trip.
-    const entry = { pc, polite: this.myId < id, makingOffer: false, ignoreOffer: false, meter: null };
+    const entry = {
+      pc,
+      polite: this.myId < id,
+      makingOffer: false,
+      ignoreOffer: false,
+      meter: null,
+      streams: []
+    };
     this.peers.set(id, entry);
 
     if (this.localStream) {
       for (const track of this.localStream.getTracks()) pc.addTrack(track, this.localStream);
+    }
+    if (this.screenStream) {
+      for (const track of this.screenStream.getTracks()) {
+        const sender = pc.addTrack(track, this.screenStream);
+        if (track.kind === 'video') this.capSender(sender, 2_500_000);
+      }
     }
 
     pc.onnegotiationneeded = async () => {
@@ -276,6 +404,14 @@ export class VoiceMesh {
     pc.ontrack = ({ streams }) => {
       const stream = streams[0];
       if (!stream) return;
+
+      if (!entry.streams.some((s) => s.id === stream.id)) entry.streams.push(stream);
+
+      // A shared screen goes to the stage, not to a face tile in the rail.
+      if (this.screenStreamId && stream.id === this.screenStreamId) {
+        this.hooks.onScreenStream?.(id, stream);
+        return;
+      }
       this.attachRemote(id, stream);
     };
 

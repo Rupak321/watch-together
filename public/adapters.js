@@ -303,6 +303,77 @@ export function createTestSource(mountEl) {
   return Promise.resolve(src);
 }
 
+// ----------------------------------------------------------- live stream
+
+/**
+ * A live MediaStream — someone's shared screen.
+ *
+ * This is the one source that needs no synchronising at all. There is a
+ * single origin producing frames in real time, so every viewer is already on
+ * the same moment by construction; there is nothing to seek to and nothing to
+ * correct. `isLive` tells the sync engine to stand down rather than fight a
+ * stream whose position it cannot control.
+ *
+ * The trade is the one from the plan: quality is bounded by the presenter's
+ * upload, and it stops when they close their laptop.
+ */
+export function createStreamSource(mountEl, stream) {
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.display = 'block';
+
+  mountEl.innerHTML = '';
+  mountEl.appendChild(video);
+  video.play().catch(() => {});
+
+  return {
+    kind: 'screen',
+    isLive: true,
+    supportsFineRate: false,
+
+    play() {
+      video.play().catch(() => {});
+    },
+    pause() {
+      // Pausing a live stream would only desync this viewer from the
+      // presenter, with no way back. Ignore it.
+    },
+    seek() {
+      /* nothing to seek in a live stream */
+    },
+    getCurrentTime() {
+      return video.currentTime || 0;
+    },
+    getDuration() {
+      return 0;
+    },
+    getBufferedAhead() {
+      return 999;
+    },
+    setPlaybackRate() {
+      /* fixed at real time */
+    },
+    setVolume(v) {
+      video.volume = Math.max(0, Math.min(1, v));
+    },
+    isReady() {
+      return video.readyState >= 2;
+    },
+    replaceStream(next) {
+      if (video.srcObject !== next) video.srcObject = next;
+      video.play().catch(() => {});
+    },
+    destroy() {
+      video.srcObject = null;
+      mountEl.innerHTML = '';
+    }
+  };
+}
+
 // ------------------------------------------------------------------ router
 
 const YT_PATTERNS = [

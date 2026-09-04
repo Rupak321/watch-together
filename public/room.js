@@ -1,5 +1,5 @@
 import { SyncClock, DriftCorrector, targetPosition } from './sync.js';
-import { identifySource, createSource } from './adapters.js';
+import { identifySource, createSource, createStreamSource } from './adapters.js';
 import { VoiceMesh } from './voice.js';
 
 const TICK_MS = 250;
@@ -99,6 +99,15 @@ function setupVoice() {
       const tile = tiles.get(id);
       tile?.classList.remove('has-video', 'speaking');
       tile?.querySelector('video')?.remove();
+    },
+
+    onScreenStream: (_id, stream) => mountStream(stream),
+
+    onScreenEnded: () => {
+      // They hit the browser's own "Stop sharing" bar. Clear the room's
+      // source too, or everyone stares at a frozen last frame.
+      send({ t: 'source', source: null });
+      renderScreenButton();
     },
 
     onThrottle: (tight) => {
@@ -277,9 +286,32 @@ function handle(m) {
 // ------------------------------------------------------------------ source
 
 async function loadSource(s) {
-  const key = `${s.kind}:${s.id}`;
+  const key = `${s.kind}:${s.id}:${s.streamId || ''}`;
   if (loadedKey === key) return;
   loadedKey = key;
+
+  // A shared screen arrives over WebRTC, not from a URL. The presenter mounts
+  // their own capture; everyone else waits for the track to land and the
+  // onScreenStream hook takes it from there.
+  if (s.kind === 'screen') {
+    if (source) {
+      source.destroy();
+      source = null;
+      corrector = null;
+    }
+    el('titleLabel').textContent = s.title || 'Shared screen';
+    el('metaLabel').textContent = 'live · no sync needed';
+    voice?.setExpectedScreenStream(s.streamId);
+
+    if (s.id === myId && voice?.screenStream) {
+      mountStream(voice.screenStream);
+    } else {
+      el('stageEmpty').hidden = false;
+      el('stageEmpty').querySelector('h2').textContent = 'Connecting to the shared screen';
+      el('stageEmpty').querySelector('p').textContent = 'This starts as soon as the video reaches you.';
+    }
+    return;
+  }
 
   if (source) {
     source.destroy();
@@ -310,16 +342,37 @@ async function loadSource(s) {
   }
 }
 
+/** Put a live MediaStream on the stage, reusing the player if one is already up. */
+function mountStream(stream) {
+  el('stageEmpty').hidden = true;
+  if (source?.isLive) {
+    source.replaceStream(stream);
+  } else {
+    source?.destroy();
+    source = createStreamSource(el('stage'), stream);
+    corrector = null; // a live stream has nothing to correct
+  }
+  el('startBtn').disabled = true;
+  startTicking();
+}
+
 function clearSource() {
-  if (!source) return;
-  source.destroy();
+  loadedKey = null;
+  voice?.setExpectedScreenStream(null);
+
+  source?.destroy();
   source = null;
   corrector = null;
-  loadedKey = null;
+
   el('stageEmpty').hidden = false;
+  // Restore the default copy — the screen-share path rewrites it in place.
+  el('stageEmpty').querySelector('h2').textContent = 'Nothing playing yet';
+  el('stageEmpty').querySelector('p').textContent =
+    "Pick something from the panel — a YouTube link, a direct video URL, the public-domain archive, or share your screen.";
   el('startBtn').disabled = true;
   el('titleLabel').textContent = 'No source yet';
   el('metaLabel').textContent = 'Pick something to watch';
+  renderScreenButton();
 }
 
 function labelFor(s) {
@@ -376,7 +429,21 @@ function startTicking() {
 }
 
 function tick() {
-  if (!source || !corrector || !clock.locked) return;
+  if (!source) return;
+
+  // A live stream is already the same moment for everyone — there is one
+  // origin producing frames in real time. Correcting it would only shove
+  // this viewer away from the presenter with no way back.
+  if (source.isLive) {
+    el('mDrift').textContent = 'live';
+    el('mAction').textContent = 'no sync needed';
+    el('syncDot').classList.remove('warn');
+    el('syncLabel').textContent = 'live';
+    renderPosition();
+    return;
+  }
+
+  if (!corrector || !clock.locked) return;
   const now = clock.now();
 
   if (pendingStart) {
@@ -646,15 +713,48 @@ el('nudge').addEventListener('input', (e) => {
 
 // ------------------------------------------------------------ source picker
 
+const TABS = { link: 'paneLink', archive: 'paneArchive', screen: 'paneScreen' };
+
 function selectTab(which) {
-  const link = which === 'link';
-  el('tabLink').setAttribute('aria-selected', String(link));
-  el('tabArchive').setAttribute('aria-selected', String(!link));
-  el('paneLink').hidden = !link;
-  el('paneArchive').hidden = link;
+  for (const [name, pane] of Object.entries(TABS)) {
+    const on = name === which;
+    el('tab' + name[0].toUpperCase() + name.slice(1)).setAttribute('aria-selected', String(on));
+    el(pane).hidden = !on;
+  }
 }
-el('tabLink').addEventListener('click', () => selectTab('link'));
-el('tabArchive').addEventListener('click', () => selectTab('archive'));
+for (const name of Object.keys(TABS)) {
+  el('tab' + name[0].toUpperCase() + name.slice(1)).addEventListener('click', () => selectTab(name));
+}
+
+document.querySelectorAll('.js-screen').forEach((b) =>
+  b.addEventListener('click', async () => {
+    el('srcNotice').hidden = true;
+    try {
+      if (voice.screenStream) {
+        voice.stopScreenShare();
+        send({ t: 'source', source: null });
+      } else {
+        const stream = await voice.startScreenShare();
+        // The stream id travels in the SDP, so announcing it here is what
+        // lets every receiver tell this apart from a webcam.
+        send({ t: 'source', source: { kind: 'screen', id: myId, streamId: stream.id, title: `${myName}'s screen` } });
+      }
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        showSrcError('Screen sharing is not available in this browser.');
+      }
+    }
+    renderScreenButton();
+  })
+);
+
+function renderScreenButton() {
+  const on = !!voice?.screenStream;
+  for (const b of document.querySelectorAll('.js-screen')) {
+    b.dataset.on = String(on);
+    b.textContent = on ? 'Stop sharing' : 'Share my screen';
+  }
+}
 
 function setSourceFromInput() {
   const parsed = identifySource(el('srcInput').value);

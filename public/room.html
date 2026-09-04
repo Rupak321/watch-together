@@ -116,6 +116,7 @@
       <div class="src-tabs" role="tablist">
         <button role="tab" id="tabLink" aria-selected="true" aria-controls="paneLink">Link</button>
         <button role="tab" id="tabArchive" aria-selected="false" aria-controls="paneArchive">Archive</button>
+        <button role="tab" id="tabScreen" aria-selected="false" aria-controls="paneScreen">Screen</button>
       </div>
 
       <div class="src-pane" id="paneLink" role="tabpanel">
@@ -124,6 +125,13 @@
           <button class="ghost" id="srcBtn">Set</button>
         </div>
         <p class="src-hint">YouTube links, or any URL ending in .mp4. Type <b>test</b> for the sync clock.</p>
+      </div>
+
+      <div class="src-pane" id="paneScreen" role="tabpanel" hidden>
+        <button class="ghost js-screen" data-on="false" style="width:100%">Share my screen</button>
+        <p class="src-hint">Covers anything the other options can't reach. Pick a
+          <b>browser tab</b> and tick "share tab audio" to bring the sound with it. Quality
+          depends on your upload speed, and it stops when you close the tab.</p>
       </div>
 
       <div class="src-pane" id="paneArchive" role="tabpanel" hidden>
