@@ -30,6 +30,12 @@ Open `http://localhost:8787`, press **Start a room**, share the `/r/CODE` link.
 **Sources** — YouTube, any direct video URL, Internet Archive search, plus a synthetic
 `test` clock. All behind one adapter interface, so `sync.js` never changes when one is added.
 
+**Embedded browser** — a browser inside the room, personal to whoever opens it. Find a
+film, press **Play in room**, and it starts for everyone in sync. Because a refused iframe
+fails silently, every address is checked server-side first (`/api/embed-check`) and a site
+that will not be framed says so — while still handing over its title, its video files and
+its links, so it stays browsable as text and still yields something to play.
+
 **Sync** — clock estimation, drift correction by playback rate, ready-check gate, live
 roster with per-person lag, and an interruption band instead of a modal.
 
@@ -76,6 +82,9 @@ viewers. Playback stayed in sync between two people.
 - **Anything above two people.** Mesh is three connections each at four people; nobody has
   run that.
 - **Phones.** There is a breakpoint in the CSS, not a design.
+- **The embedded browser in a real browser.** The endpoint is verified against live sites
+  and the module is smoke-tested against a stub DOM; nobody has yet clicked through it on
+  a running page.
 
 ---
 
@@ -105,7 +114,7 @@ upstream. That is where the SFU has to take over, and it needs the same account.
 
 ```
 src/
-  index.js         Worker — routing, room codes, /r/ pages, Archive proxy
+  index.js         Worker — routing, room codes, /r/ pages, Archive proxy, embed check
   room.js          Durable Object — clock, ready-check, roster, chat
 public/
   index.html       Home
@@ -115,6 +124,7 @@ public/
   style.css        Tokens and base — the two grounds
   sync.js          SyncClock + DriftCorrector
   adapters.js      VideoSource implementations
+  browser.js       The embedded browser
   tick-worker.js   Worker-thread timer so background tabs keep correcting
 ```
 
@@ -165,6 +175,16 @@ the corrector's deadband to ±400 ms and switches it to micro-seeks.
 - **Archive items are often reels, not films.** Many hold no complete copy — only
   `...-3of5.mp4`. `archivePick` takes the first part and reports the count so the UI can say
   so; sorting by size alone lands on an arbitrary middle reel.
+- **A blocked iframe raises no error.** A frame refused by `X-Frame-Options` or CSP
+  `frame-ancestors` is a blank rectangle with no event, no status and no readable
+  location — the response never becomes a document this origin can see. That is the whole
+  reason `/api/embed-check` exists, and why the embedded browser's address bar tracks only
+  what was opened *through* it: a link followed inside a cross-origin frame cannot be
+  observed from outside it.
+
+- **`HTML_SCAN_BYTES` is 1.6 MB on purpose.** YouTube puts its `<title>` 700 KB into the
+  response. A cap tight enough to feel prudent is a cap that misses the name of the page.
+
 - **`object-fit` defaults to `contain` for `<video>`** (unlike `<img>`), so 4:3 prints
   letterbox correctly with no extra CSS.
 

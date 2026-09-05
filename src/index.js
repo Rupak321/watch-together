@@ -112,6 +112,188 @@ async function archivePick(id) {
   };
 }
 
+/**
+ * The embedded browser's preflight.
+ *
+ * Framing is the whole problem. Most of the web sets `X-Frame-Options` or a
+ * CSP `frame-ancestors`, and a blocked frame fails *silently* — no error
+ * event, no readable status, just a blank rectangle, because the response
+ * never becomes a document this origin can see. So the answer has to be
+ * fetched server-side and reported before the iframe is ever pointed at it.
+ *
+ * The same fetch is worth more than a yes/no. While the HTML is in hand it
+ * costs nothing to pull out the title, any video files the page references
+ * and its outgoing links — which means a page that refuses to be framed
+ * still yields the one thing this app actually wants from it.
+ */
+
+/** Blocks the request from being aimed back inside the network fetching it. */
+function safeUrl(raw) {
+  let u;
+  try {
+    u = new URL(String(raw));
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return null;
+
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    if (a === 0 || a === 10 || a === 127) return null;
+    if (a === 169 && b === 254) return null;
+    if (a === 172 && b >= 16 && b <= 31) return null;
+    if (a === 192 && b === 168) return null;
+    if (a === 100 && b >= 64 && b <= 127) return null;
+    if (a >= 224) return null;
+  }
+  if (host.includes(':')) {
+    if (host === '::1' || host === '::') return null;
+    if (/^f[cd]/.test(host) || /^fe[89ab]/.test(host)) return null;
+  }
+  return u;
+}
+
+/**
+ * `frame-ancestors *` allows anyone; anything else names specific origins,
+ * and this Worker is not going to be among them in any realistic case.
+ * X-Frame-Options has no allow-list worth honouring — ALLOW-FROM is dead in
+ * every current browser.
+ */
+function framingVerdict(res) {
+  const xfo = (res.headers.get('x-frame-options') || '').trim();
+  if (/deny|sameorigin/i.test(xfo)) return { embeddable: false, blockedBy: `X-Frame-Options: ${xfo}` };
+
+  const csp = res.headers.get('content-security-policy') || '';
+  const m = csp.match(/frame-ancestors([^;]*)/i);
+  if (m) {
+    const list = m[1].trim();
+    if (!/(^|\s)\*(\s|$)/.test(list)) {
+      return { embeddable: false, blockedBy: `Content-Security-Policy: frame-ancestors ${list}` };
+    }
+  }
+  return { embeddable: true, blockedBy: null };
+}
+
+const VIDEO_FILE = /\.(mp4|m4v|webm|ogv|mov|m3u8)(\?|#|$)/i;
+
+/**
+ * Enough of the document to find the head and the players. Generous on
+ * purpose: YouTube puts its own <title> 700KB into the response, and a cap
+ * tight enough to feel safe is a cap that misses the name of the page.
+ */
+const HTML_SCAN_BYTES = 1_600_000;
+
+function absolute(href, base) {
+  try {
+    const u = new URL(href, base);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodeEntities(s) {
+  return s
+    .replace(/&(#\d+|#x[0-9a-f]+|amp|lt|gt|quot|#39|apos);/gi, (all, e) => {
+      if (e[0] === '#') return String.fromCodePoint(Number(e[1] === 'x' || e[1] === 'X' ? '0' + e.slice(1) : e.slice(1)));
+      return { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'" }[e.toLowerCase()] || all;
+    })
+    .trim();
+}
+
+function scrapePage(html, base) {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]{0,300}?)<\/title>/i);
+  const title = titleMatch ? decodeEntities(titleMatch[1].replace(/\s+/g, ' ')) : null;
+
+  const videos = new Map();
+  const addVideo = (href, label) => {
+    const abs = href && absolute(decodeEntities(href), base);
+    if (!abs || videos.has(abs)) return;
+    if (!VIDEO_FILE.test(abs)) return;
+    videos.set(abs, { url: abs, label, name: decodeURIComponent(abs.split('/').pop().split(/[?#]/)[0]).slice(0, 90) });
+  };
+
+  // A <video src>, a <source> inside one, and og:video are where a page
+  // states its own film. Everything else is a guess from the extension.
+  for (const m of html.matchAll(/<(?:video|source|embed)\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi)) {
+    addVideo(m[1], 'player');
+  }
+  for (const m of html.matchAll(
+    /<meta\b[^>]*\b(?:property|name)\s*=\s*["']og:video(?::url|:secure_url)?["'][^>]*\bcontent\s*=\s*["']([^"']+)["']/gi
+  )) {
+    addVideo(m[1], 'og:video');
+  }
+  for (const m of html.matchAll(/\b(?:href|src|data-src)\s*=\s*["']([^"']+)["']/gi)) {
+    addVideo(m[1], 'link');
+  }
+
+  const links = new Map();
+  for (const m of html.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]{0,200}?)<\/a>/gi)) {
+    const abs = absolute(decodeEntities(m[1]), base);
+    if (!abs || links.has(abs) || videos.has(abs)) continue;
+    const text = decodeEntities(m[2].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '));
+    if (text.length < 2) continue;
+    links.set(abs, { url: abs, text: text.slice(0, 80) });
+    if (links.size >= 60) break;
+  }
+
+  return { title, videos: [...videos.values()].slice(0, 20), links: [...links.values()] };
+}
+
+async function inspectForEmbedding(target) {
+  const res = await fetch(target, {
+    redirect: 'follow',
+    headers: {
+      // Sent as a browser because a page that thinks it is talking to a
+      // crawler serves something different from what the iframe will get.
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9'
+    }
+  });
+
+  const finalUrl = res.url || String(target);
+  const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const { embeddable, blockedBy } = framingVerdict(res);
+
+  const base = {
+    ok: true,
+    url: finalUrl,
+    status: res.status,
+    contentType,
+    embeddable: res.ok && embeddable,
+    blockedBy: res.ok ? blockedBy : `The site answered ${res.status}.`,
+    title: null,
+    videos: [],
+    links: []
+  };
+
+  // A URL that *is* the video needs no scraping — it is already the answer.
+  if (contentType.startsWith('video/') || (!contentType.startsWith('text/html') && VIDEO_FILE.test(finalUrl))) {
+    res.body?.cancel();
+    return {
+      ...base,
+      embeddable: false,
+      blockedBy: null,
+      isMedia: true,
+      videos: [{ url: finalUrl, label: 'direct file', name: decodeURIComponent(finalUrl.split('/').pop().split(/[?#]/)[0]).slice(0, 90) }]
+    };
+  }
+
+  if (!contentType.startsWith('text/html') && contentType !== '') {
+    res.body?.cancel();
+    return base;
+  }
+
+  const html = (await res.text()).slice(0, HTML_SCAN_BYTES);
+  return { ...base, ...scrapePage(html, finalUrl) };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -179,6 +361,26 @@ export default {
         return Response.json(picked);
       } catch {
         return Response.json({ error: 'Could not reach the archive.' }, { status: 502 });
+      }
+    }
+
+    /**
+     * Ask, before framing, whether a page can be framed at all — and bring
+     * back the video files it references either way. See the notes above
+     * inspectForEmbedding for why the browser cannot answer this itself.
+     */
+    if (url.pathname === '/api/embed-check') {
+      const target = safeUrl(url.searchParams.get('url') || '');
+      if (!target) {
+        return Response.json({ ok: false, error: 'That is not a public http or https address.' }, { status: 400 });
+      }
+      try {
+        return Response.json(await inspectForEmbedding(target));
+      } catch {
+        return Response.json(
+          { ok: false, error: 'That site could not be reached. Check the address, or open it in a tab.' },
+          { status: 502 }
+        );
       }
     }
 

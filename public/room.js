@@ -1,6 +1,7 @@
 import { SyncClock, DriftCorrector, targetPosition } from './sync.js';
 import { identifySource, createSource, createStreamSource } from './adapters.js';
 import { VoiceMesh } from './voice.js';
+import { createBrowser } from './browser.js';
 
 const TICK_MS = 250;
 const READY_FALLBACK_MS = 7000;   // the room gives up at 8s; beat it
@@ -212,6 +213,7 @@ el('muteToggle').addEventListener('change', (e) => voice.setMuted(e.target.check
 // Hold T to talk. Space is already playback, as it is in every player.
 document.addEventListener('keydown', (e) => {
   if (e.repeat || e.target.matches('input, textarea')) return;
+  if (browser.isOpen()) return;
   if (e.code === 'KeyT') voice?.setPttHeld(true);
 });
 document.addEventListener('keyup', (e) => {
@@ -962,6 +964,8 @@ el('leaveBtn').addEventListener('click', () => (location.href = '/'));
 // Space toggles playback, the way it does in every player.
 document.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea')) return;
+  // Not while the browser is over the room — there, space is the page's.
+  if (browser.isOpen()) return;
   if (e.code === 'Space') {
     e.preventDefault();
     send({ t: roomState.playing ? 'pause' : 'play' });
@@ -983,7 +987,7 @@ el('nudge').addEventListener('input', (e) => {
 
 // ------------------------------------------------------------ source picker
 
-const TABS = { link: 'paneLink', archive: 'paneArchive', screen: 'paneScreen' };
+const TABS = { link: 'paneLink', archive: 'paneArchive', browse: 'paneBrowse', screen: 'paneScreen' };
 
 function selectTab(which) {
   for (const [name, pane] of Object.entries(TABS)) {
@@ -1025,6 +1029,20 @@ function renderScreenButton() {
     b.textContent = on ? 'Stop sharing' : 'Share my screen';
   }
 }
+
+/**
+ * The browser is one person's, but what it finds is everyone's — a pick from
+ * it travels the same path as one typed into the Link box, so the room sees
+ * no difference and sync is unchanged.
+ */
+const browser = createBrowser({
+  onPlay(source) {
+    el('srcNotice').hidden = true;
+    send({ t: 'source', source });
+  }
+});
+
+el('openBrowserBtn').addEventListener('click', () => browser.open());
 
 function setSourceFromInput() {
   const parsed = identifySource(el('srcInput').value);

@@ -140,6 +140,7 @@
       <div class="src-tabs" role="tablist">
         <button role="tab" id="tabLink" aria-selected="true" aria-controls="paneLink">Link</button>
         <button role="tab" id="tabArchive" aria-selected="false" aria-controls="paneArchive">Archive</button>
+        <button role="tab" id="tabBrowse" aria-selected="false" aria-controls="paneBrowse">Browse</button>
         <button role="tab" id="tabScreen" aria-selected="false" aria-controls="paneScreen">Screen</button>
       </div>
 
@@ -151,6 +152,14 @@
         <p class="src-hint">A YouTube link, or a URL ending in <b>.mp4</b>. A page that plays a
           video inside it will not work here — use <b>Screen</b> for those. Type <b>test</b>
           for the sync clock.</p>
+      </div>
+
+      <div class="src-pane" id="paneBrowse" role="tabpanel" hidden>
+        <button class="ghost" id="openBrowserBtn" style="width:100%">Open the browser</button>
+        <p class="src-hint">A browser inside the room, and only you see it. Find something,
+          then press <b>Play in room</b> and it starts for everyone, in sync. Sites that
+          refuse to be shown inside another site still hand over their video files and
+          links — and <b>Open in a tab</b> plus <b>Screen</b> covers whatever is left.</p>
       </div>
 
       <div class="src-pane" id="paneScreen" role="tabpanel" hidden>
@@ -219,6 +228,62 @@
     </div>
 
   </aside>
+</div>
+
+<!-- The embedded browser. Personal to whoever opened it — nothing here is
+     broadcast until they press Play in room. See browser.js. -->
+<div class="browser" id="browser" hidden>
+
+  <div class="br-chrome">
+    <button class="ghost br-nav" id="brBack" aria-label="Back" title="Back">&lsaquo;</button>
+    <button class="ghost br-nav" id="brFwd" aria-label="Forward" title="Forward">&rsaquo;</button>
+    <button class="ghost br-nav" id="brReload" aria-label="Reload" title="Reload">&#8635;</button>
+    <div class="br-addr">
+      <input id="brUrl" placeholder="Address, or search" autocomplete="off" spellcheck="false"
+             autocapitalize="off" autocorrect="off" aria-label="Address">
+      <span class="spin" id="brBusy" hidden></span>
+    </div>
+    <button class="ghost" id="brGo">Go</button>
+    <button class="ghost" id="brTab">Open in a tab</button>
+    <button class="ghost" id="brClose">Close</button>
+  </div>
+
+  <div class="br-body">
+    <iframe id="brFrame" hidden title="Embedded browser"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            referrerpolicy="no-referrer"></iframe>
+
+    <div class="br-intro" id="brIntro" hidden>
+      <h2>A browser, in the room</h2>
+      <p class="muted">Only you see this. Find a film, then send it to everyone with
+        <b>Play in room</b>.</p>
+      <div class="br-quick">
+        <button class="ghost" data-goto="https://archive.org/details/feature_films">Archive · feature films</button>
+        <button class="ghost" data-goto="https://archive.org/details/film_noir">Archive · film noir</button>
+        <button class="ghost" data-goto="https://en.wikipedia.org/wiki/List_of_films_in_the_public_domain_in_the_United_States">Public-domain list</button>
+        <button class="ghost" data-goto="https://www.youtube.com">YouTube</button>
+      </div>
+      <p class="faint">A link you follow inside a page will not change the address above.
+        Another site inside a frame never reports where it went — that is the frame, not a
+        bug, and it is why the address bar tracks only what you open from here.</p>
+    </div>
+
+    <div class="br-card" id="brCard" hidden>
+      <h2 id="brCardTitle"></h2>
+      <p id="brCardWhy"></p>
+      <div class="br-links" id="brLinksWrap" hidden>
+        <span class="eyebrow">Links on this page</span>
+        <ul class="results" id="brLinks"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="br-found" id="brFound" hidden>
+    <span class="eyebrow">Playable here</span>
+    <ul id="brFoundList"></ul>
+  </div>
+
 </div>
 
 <script type="module" src="/room.js"></script>
