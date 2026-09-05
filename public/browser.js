@@ -76,6 +76,7 @@ export function createBrowser({ onPlay }) {
     el('brIntro').hidden = true;
     el('brCard').hidden = true;
     el('brFound').hidden = true;
+    el('brFallback').hidden = true;
     el('brFoundList').innerHTML = '';
     el('brLinks').innerHTML = '';
     frame.hidden = true;
@@ -156,22 +157,41 @@ export function createBrowser({ onPlay }) {
     el('brCard').hidden = false;
     el('brCardTitle').textContent = info.title || hostOf(info.url);
 
+    const host = hostOf(info.url);
     const why = el('brCardWhy');
     why.innerHTML = '';
+
+    // Unknown is not the same as no, and the difference decides what to offer.
+    const unknown = info.embeddable === null;
+
     if (info.isMedia) {
       why.textContent = 'This address is a video file, not a page — play it in the room below.';
+    } else if (unknown) {
+      why.append(
+        document.createTextNode(
+          `${host} turned the check away — it answered ${info.status} to this site's server, ` +
+            `which is what bot protection does to anything that is not a person at a browser. ` +
+            `That says nothing about whether the page works for you: your browser loads it from ` +
+            `your own address. Try it.`
+        )
+      );
     } else if (info.status >= 400) {
-      // A site that answered badly and a site that refuses to be framed both
-      // arrive here, and they call for different next moves.
-      why.textContent = `${hostOf(info.url)} answered ${info.status}. The address may be wrong, or the page may be gone.`;
+      why.textContent = `${host} answered ${info.status}. The address may be wrong, or the page may be gone.`;
     } else if (info.blockedBy) {
       why.append(
-        document.createTextNode(`${hostOf(info.url)} does not allow itself to be shown inside another site. `),
+        document.createTextNode(`${host} does not allow itself to be shown inside another site. `),
         Object.assign(document.createElement('span'), { className: 'mono', textContent: info.blockedBy })
       );
     } else {
       why.textContent = 'There was nothing here to display.';
     }
+
+    // Offer the frame only where it might actually paint. A site whose own
+    // headers said DENY will render a blank rectangle every time, and a
+    // button that reliably does nothing is worse than no button.
+    el('brAnyway').hidden = !unknown;
+    el('brCardTab').hidden = false;
+    el('brCardHint').hidden = !(unknown || info.blockedBy);
 
     const links = el('brLinks');
     links.innerHTML = '';
@@ -195,6 +215,26 @@ export function createBrowser({ onPlay }) {
     el('brCardTitle').textContent = 'Could not open that';
     el('brCardWhy').textContent = message;
     el('brLinksWrap').hidden = true;
+    el('brAnyway').hidden = true;
+    el('brCardTab').hidden = true;
+    el('brCardHint').hidden = true;
+  }
+
+  /**
+   * Point the frame at it regardless of what the check said.
+   *
+   * Reachable only when the check came back unknown. The frame loads from the
+   * viewer's own address with their cookies and a real browser behind it, so
+   * it routinely succeeds where a datacenter fetch was challenged — and when
+   * it does fail there is nothing to see, which is why the card stays
+   * underneath rather than being replaced.
+   */
+  function loadAnyway() {
+    if (!current) return;
+    frame.src = current.url;
+    frame.hidden = false;
+    el('brCard').hidden = true;
+    el('brFallback').hidden = false;
   }
 
   // ------------------------------------------------------------ navigating
@@ -230,7 +270,9 @@ export function createBrowser({ onPlay }) {
     current = info;
     addr.value = info.url;
 
-    if (info.embeddable) {
+    // Only a positive yes goes straight into the frame. Unknown gets the card
+    // with a way through it; a refusal gets the card and the reader view.
+    if (info.embeddable === true) {
       frame.src = info.url;
       frame.hidden = false;
     } else {
@@ -287,9 +329,13 @@ export function createBrowser({ onPlay }) {
   el('brReload').addEventListener('click', () => {
     if (current) go(current.url, { push: false });
   });
-  el('brTab').addEventListener('click', () => {
+  const openInTab = () => {
     if (current) window.open(current.url, '_blank', 'noopener,noreferrer');
-  });
+  };
+  el('brTab').addEventListener('click', openInTab);
+  el('brCardTab').addEventListener('click', openInTab);
+  el('brFallbackTab').addEventListener('click', openInTab);
+  el('brAnyway').addEventListener('click', loadAnyway);
   el('brClose').addEventListener('click', close);
 
   for (const b of root.querySelectorAll('[data-goto]')) {

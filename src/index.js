@@ -178,6 +178,13 @@ function framingVerdict(res) {
   return { embeddable: true, blockedBy: null };
 }
 
+/**
+ * Statuses that mean "this check was turned away", not "this page is broken".
+ * A bot challenge, a rate limit and a login wall all answer here, and none of
+ * them say anything about the page a real browser would be served.
+ */
+const CHALLENGE_STATUS = new Set([401, 403, 405, 406, 429, 503]);
+
 const VIDEO_FILE = /\.(mp4|m4v|webm|ogv|mov|m3u8)(\?|#|$)/i;
 
 /**
@@ -266,8 +273,17 @@ async function inspectForEmbedding(target) {
     url: finalUrl,
     status: res.status,
     contentType,
-    embeddable: res.ok && embeddable,
-    blockedBy: res.ok ? blockedBy : `The site answered ${res.status}.`,
+    // Three-valued, and the third value is the important one.
+    //
+    // This check runs from a datacenter IP with no cookies and no browser
+    // behind it, which is exactly what bot protection exists to turn away. A
+    // challenge page's headers describe the challenge, not the site — so a
+    // 403 here says nothing about whether the page can be framed, and
+    // reporting `false` would condemn a page that loads perfectly well from
+    // the viewer's own address. Unknown is the honest answer, and the frame
+    // itself is the only thing that can settle it.
+    embeddable: res.ok ? embeddable : CHALLENGE_STATUS.has(res.status) ? null : false,
+    blockedBy: res.ok ? blockedBy : null,
     title: null,
     videos: [],
     links: []
@@ -286,6 +302,14 @@ async function inspectForEmbedding(target) {
   }
 
   if (!contentType.startsWith('text/html') && contentType !== '') {
+    res.body?.cancel();
+    return base;
+  }
+
+  // Scraping a challenge page harvests the interstitial — "Just a moment..."
+  // and the scripts behind it — and then presents that as the site. Return
+  // nothing instead, and let the client say the check was blocked.
+  if (!res.ok) {
     res.body?.cancel();
     return base;
   }

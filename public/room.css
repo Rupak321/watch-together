@@ -660,6 +660,26 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 .br-links .eyebrow { display: block; margin-bottom: 8px; }
 .br-links .results { max-height: none; }
 
+/* A frame we chose to load without a verdict: it may paint nothing, and
+   nothing is exactly what a refused frame reports. */
+.br-fallback {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: rgba(11, 9, 8, .93);
+  border-top: 1px solid var(--rule);
+  font-size: 0.8125rem;
+  color: var(--dim);
+}
+.br-fallback span { flex: 1; min-width: 0; }
+.br-fallback button { min-height: 32px; padding: 6px 11px; font-size: 0.75rem; flex: 0 0 auto; }
+
 /* found films */
 
 .br-found {

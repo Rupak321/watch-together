@@ -272,10 +272,26 @@
     <div class="br-card" id="brCard" hidden>
       <h2 id="brCardTitle"></h2>
       <p id="brCardWhy"></p>
+      <div class="br-quick">
+        <button id="brAnyway" hidden>Load it anyway</button>
+        <button class="ghost" id="brCardTab" hidden>Open in a tab</button>
+      </div>
+      <p class="faint" id="brCardHint" hidden style="max-width:62ch">If it opens in a tab but
+        not here, that site refuses to be shown inside another one and no setting on this
+        end changes that. Play it in the tab and share the tab from <b>Screen</b> — everyone
+        sees it, audio included, and it stays in sync because there is only one player.</p>
       <div class="br-links" id="brLinksWrap" hidden>
         <span class="eyebrow">Links on this page</span>
         <ul class="results" id="brLinks"></ul>
       </div>
+    </div>
+
+    <!-- Shown over a frame loaded without a verdict. A refused frame paints
+         nothing and reports nothing, so the only way to explain a blank
+         rectangle is to say so before it happens. -->
+    <div class="br-fallback" id="brFallback" hidden>
+      <span>Loaded without the check. Blank means the site refused the frame.</span>
+      <button class="ghost" id="brFallbackTab">Open in a tab</button>
     </div>
   </div>
 
