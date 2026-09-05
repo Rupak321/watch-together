@@ -1,7 +1,6 @@
 import { SyncClock, DriftCorrector, targetPosition } from './sync.js';
 import { identifySource, createSource, createStreamSource } from './adapters.js';
 import { VoiceMesh } from './voice.js';
-import { Uploader, hasResumable, humanSize } from './upload.js';
 
 const TICK_MS = 250;
 const READY_FALLBACK_MS = 7000;   // the room gives up at 8s; beat it
@@ -984,7 +983,7 @@ el('nudge').addEventListener('input', (e) => {
 
 // ------------------------------------------------------------ source picker
 
-const TABS = { link: 'paneLink', archive: 'paneArchive', screen: 'paneScreen', upload: 'paneUpload' };
+const TABS = { link: 'paneLink', archive: 'paneArchive', screen: 'paneScreen' };
 
 function selectTab(which) {
   for (const [name, pane] of Object.entries(TABS)) {
@@ -1040,100 +1039,6 @@ function setSourceFromInput() {
 el('srcBtn').addEventListener('click', setSourceFromInput);
 el('srcInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') setSourceFromInput();
-});
-
-// ----------------------------------------------------------------- upload
-
-let uploader = null;
-
-async function startUpload(file) {
-  if (!file || uploader) return;
-
-  el('upError').hidden = true;
-  el('upFix').hidden = true;
-  el('upStatus').hidden = false;
-  el('upName').textContent = `${file.name} · ${humanSize(file.size)}`;
-  el('upPct').textContent = hasResumable(file) ? 'resuming…' : 'checking the file…';
-  el('upFill').style.width = '0%';
-
-  uploader = new Uploader({
-    onProbe: (probe, fix) => {
-      if (probe.ok && probe.audio !== false) return;
-      el('upStatus').hidden = true;
-      el('upError').textContent = probe.reason;
-      el('upError').hidden = false;
-      if (fix) {
-        // The exact command, with the working stream copied rather than
-        // re-encoded — that difference is seconds against most of an hour.
-        el('upFix').textContent = fix;
-        el('upFix').hidden = false;
-      }
-    },
-    onResume: (parts) => (el('upPct').textContent = `resuming from part ${parts + 1}`),
-    onProgress: (frac, done, total) => {
-      el('upFill').style.width = `${Math.round(frac * 100)}%`;
-      el('upPct').textContent = `${Math.round(frac * 100)}% · part ${done} of ${total}`;
-    }
-  });
-
-  try {
-    const result = await uploader.run(file, { title: file.name.replace(/\.[^.]+$/, '') });
-    if (result) {
-      send({ t: 'source', source: { kind: 'file', id: result.url, title: result.title } });
-      el('upPct').textContent = 'ready';
-      setTimeout(() => (el('upStatus').hidden = true), 2500);
-    }
-  } catch (err) {
-    el('upError').textContent = `${err.message} Your progress is saved — pick the same file again to carry on.`;
-    el('upError').hidden = false;
-  } finally {
-    uploader = null;
-    el('fileInput').value = '';
-  }
-}
-
-el('fileInput').addEventListener('change', (e) => startUpload(e.target.files?.[0]));
-
-// Storage is optional — the room runs fine without it — so say so before
-// someone picks a four gigabyte file and waits for a check that cannot help.
-fetch('/api/capabilities')
-  .then((r) => r.json())
-  .then(({ upload }) => {
-    if (upload) return;
-    el('tabUpload').hidden = true;
-    el('dropZone').style.display = 'none';
-    el('upError').textContent =
-      'Uploads are switched off for this site. Everything else works — use Screen to share a film playing in another tab.';
-    el('upError').hidden = false;
-  })
-  .catch(() => {});
-
-el('upCancel').addEventListener('click', () => {
-  uploader?.cancel();
-  el('upPct').textContent = 'stopped — pick the same file to carry on';
-});
-
-// Dropping a file is how most people expect to do this.
-const drop = el('dropZone');
-for (const ev of ['dragenter', 'dragover']) {
-  drop.addEventListener(ev, (e) => {
-    e.preventDefault();
-    drop.classList.add('over');
-  });
-}
-for (const ev of ['dragleave', 'drop']) {
-  drop.addEventListener(ev, () => drop.classList.remove('over'));
-}
-drop.addEventListener('drop', (e) => {
-  e.preventDefault();
-  startUpload(e.dataTransfer?.files?.[0]);
-});
-
-// A half-finished upload is worth more than a stray click on the page.
-window.addEventListener('beforeunload', (e) => {
-  if (!uploader) return;
-  e.preventDefault();
-  e.returnValue = '';
 });
 
 async function searchArchive() {

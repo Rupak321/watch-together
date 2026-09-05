@@ -1,7 +1,5 @@
 export { Room } from './room.js';
 
-import { handleUpload, serveMedia } from './upload.js';
-
 /**
  * Room codes avoid characters people misread aloud over the phone:
  * no 0/O, no 1/I/L. 31 symbols, 6 places — about 900 million codes.
@@ -182,22 +180,6 @@ export default {
       } catch {
         return Response.json({ error: 'Could not reach the archive.' }, { status: 502 });
       }
-    }
-
-    // Lets the room disable the upload panel up front, instead of letting
-    // someone choose a file and wait through a check before finding out.
-    if (url.pathname === '/api/capabilities') {
-      return Response.json({ upload: !!env.MEDIA });
-    }
-
-    if (url.pathname.startsWith('/api/upload/')) {
-      const res = await handleUpload(request, env, url);
-      if (res) return res;
-      return Response.json({ error: 'Unknown upload step' }, { status: 404 });
-    }
-
-    if (url.pathname.startsWith('/media/')) {
-      return serveMedia(request, env, url);
     }
 
     if (url.pathname === '/ws') {
