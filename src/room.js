@@ -176,6 +176,32 @@ export class Room {
         return;
       }
 
+      /**
+       * Shared browsing — an address, not a film.
+       *
+       * This moves everyone's embedded browser to the same page. It does not
+       * and cannot synchronise what plays there: each viewer's iframe loads
+       * its own copy of the page with its own player, and a cross-origin
+       * frame exposes no position, no play and no seek to the page holding
+       * it. So this is co-navigation, and the room's clock stays out of it.
+       */
+      case 'browse': {
+        const url = String(msg.url || '').slice(0, 2000);
+        if (!/^https?:\/\//i.test(url)) return;
+
+        const att = ws.deserializeAttachment() || {};
+        this.state.browseUrl = url;
+
+        // Say who is driving, once, rather than on every navigation.
+        if (this.state.browseBy !== att.id) {
+          this.state.browseBy = att.id;
+          this.broadcast({ t: 'system', text: `${att.name || 'guest'} is browsing together` });
+        }
+        await this.save();
+        this.broadcast({ t: 'browse', url, by: att.id, byName: att.name || 'guest' });
+        return;
+      }
+
       case 'settings': {
         if (!this.isHost(ws)) return;
         if (msg.pausePolicy === 'anyone' || msg.pausePolicy === 'host') {
@@ -323,6 +349,8 @@ export class Room {
       source: this.state.source,
       phase: this.state.phase,
       pausePolicy: this.state.pausePolicy,
+      // So someone arriving late lands on the page the room is already on.
+      browseUrl: this.state.browseUrl || null,
       serverClock: Date.now()
     };
   }

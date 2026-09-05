@@ -347,6 +347,11 @@ function handle(m) {
       for (const c of m.messages || []) addChat(c.name, c.text, true);
       return;
 
+    case 'browse':
+      // Never bounce a navigation back at the person who sent it.
+      if (m.by !== myId) browser.followRemote(m.url, m.byName);
+      return;
+
     case 'react':
       popReaction(m.emoji);
       return;
@@ -1039,10 +1044,15 @@ const browser = createBrowser({
   onPlay(source) {
     el('srcNotice').hidden = true;
     send({ t: 'source', source });
+  },
+  onNavigate(url) {
+    send({ t: 'browse', url });
   }
 });
 
-el('openBrowserBtn').addEventListener('click', () => browser.open());
+// Opening lands on whatever page the room is already on, so someone arriving
+// late joins the browsing instead of starting from a blank address bar.
+el('openBrowserBtn').addEventListener('click', () => browser.open(roomState.browseUrl || undefined));
 
 function setSourceFromInput() {
   const parsed = identifySource(el('srcInput').value);

@@ -49,7 +49,7 @@ function hostOf(url) {
   }
 }
 
-export function createBrowser({ onPlay }) {
+export function createBrowser({ onPlay, onNavigate }) {
   const root = el('browser');
   const frame = el('brFrame');
   const addr = el('brUrl');
@@ -58,6 +58,8 @@ export function createBrowser({ onPlay }) {
   let at = -1;
   let current = null;   // the last inspection result
   let seq = 0;          // a late reply from an abandoned navigation must not paint
+  let shared = false;   // broadcast my navigations to the room
+  let following = false; // this navigation came from the room; do not echo it
 
   // -------------------------------------------------------------- painting
 
@@ -248,6 +250,13 @@ export function createBrowser({ onPlay }) {
     setBusy(true);
     clearBody();
 
+    // Announce before the check, not after: everyone should start loading the
+    // page at the same moment rather than waiting on one person's preflight.
+    if (!following) {
+      el('brLed').hidden = true;
+      if (shared) onNavigate?.(url);
+    }
+
     let info;
     try {
       const res = await fetch('/api/embed-check?url=' + encodeURIComponent(url));
@@ -290,9 +299,26 @@ export function createBrowser({ onPlay }) {
 
   // ------------------------------------------------------------- lifecycle
 
+  /**
+   * The presence rail is moved, not copied.
+   *
+   * Its tiles hold live MediaStreams; a second copy would need a second
+   * connection to every peer. Moving the node keeps the one `<video>` per
+   * person that voice.js created and hands the same element to whichever
+   * surface is on top. Some browsers pause a video on re-insertion, so it is
+   * nudged back afterwards.
+   */
+  function moveRail(to) {
+    const rail = el('rail');
+    if (!rail || rail.parentElement === to) return;
+    to.appendChild(rail);
+    for (const v of rail.querySelectorAll('video')) v.play?.().catch(() => {});
+  }
+
   function open(startUrl) {
     root.hidden = false;
     document.documentElement.classList.add('browsing');
+    moveRail(el('brRail'));
     if (startUrl) {
       go(startUrl);
     } else {
@@ -305,12 +331,49 @@ export function createBrowser({ onPlay }) {
   function close() {
     root.hidden = true;
     document.documentElement.classList.remove('browsing');
+    moveRail(el('stageWrap'));
     // A page left loaded keeps its audio playing over the film.
     frame.src = 'about:blank';
     frame.hidden = true;
   }
 
   const isOpen = () => !root.hidden;
+
+  // ------------------------------------------------------- browsing together
+
+  function renderShare() {
+    const b = el('brShare');
+    b.dataset.on = String(shared);
+    b.textContent = shared ? 'Browsing together' : 'Browse together';
+  }
+
+  function setShared(on) {
+    shared = !!on;
+    renderShare();
+    // Turning it on should bring everyone to where you already are, rather
+    // than waiting for you to happen to navigate again.
+    if (shared && current) onNavigate?.(current.url);
+  }
+
+  /**
+   * A navigation that came from someone else in the room.
+   *
+   * Receiving is unconditional — following the room is the point — while
+   * *sending* is what the toggle controls. The browser opens itself if it was
+   * closed, because a shared page nobody can see is not shared.
+   */
+  function followRemote(url, byName) {
+    if (!url || (current && current.url === url && isOpen())) return;
+    following = true;
+    try {
+      if (root.hidden) open();
+      el('brLed').textContent = byName ? `following ${byName}` : 'following the room';
+      el('brLed').hidden = false;
+      go(url);
+    } finally {
+      following = false;
+    }
+  }
 
   // ---------------------------------------------------------------- wiring
 
@@ -342,9 +405,12 @@ export function createBrowser({ onPlay }) {
     b.addEventListener('click', () => go(b.dataset.goto));
   }
 
+  el('brShare').addEventListener('click', () => setShared(!shared));
+  renderShare();
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) close();
   });
 
-  return { open, close, isOpen };
+  return { open, close, isOpen, setShared, followRemote, isShared: () => shared };
 }

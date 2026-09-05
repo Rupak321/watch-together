@@ -244,8 +244,21 @@
       <span class="spin" id="brBusy" hidden></span>
     </div>
     <button class="ghost" id="brGo">Go</button>
+    <button class="ghost" id="brShare" data-on="false">Browse together</button>
     <button class="ghost" id="brTab">Open in a tab</button>
     <button class="ghost" id="brClose">Close</button>
+  </div>
+
+  <!-- The call, carried onto this surface. These buttons need no wiring of
+       their own: room.js drives every .js-mic / .js-cam / .js-screen in the
+       document, so a second set stays in step with the first by construction. -->
+  <div class="br-call">
+    <span class="br-led" id="brLed" hidden></span>
+    <div class="br-rail" id="brRail"></div>
+    <div class="grow"></div>
+    <button class="ghost js-mic" data-on="false">Join voice</button>
+    <button class="ghost js-cam" data-on="false">Camera</button>
+    <button class="ghost js-screen" data-on="false">Share my screen</button>
   </div>
 
   <div class="br-body">

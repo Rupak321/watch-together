@@ -632,6 +632,51 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 }
 .br-addr .spin { position: absolute; right: 11px; top: 50%; margin-top: -7px; }
 
+/* the call, on this surface */
+
+.br-call {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--foyer);
+  border-bottom: 1px solid var(--rule);
+  flex: 0 0 auto;
+  min-height: 52px;
+}
+.br-call button { min-height: 34px; padding: 7px 12px; font-size: 0.75rem; }
+.br-call .grow { flex: 1; }
+
+.br-led {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--lamp);
+  padding: 4px 9px;
+  border: 1px solid rgba(232, 163, 61, .35);
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+#brShare[data-on="true"] {
+  color: #1A0E13;
+  background: var(--brass);
+  border-color: var(--brass);
+}
+
+/* The rail is the same element the stage uses — moved here, not copied — so
+   its stage positioning has to be undone rather than duplicated. */
+.br-rail { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.br-rail .rail {
+  position: static;
+  left: auto;
+  bottom: auto;
+  max-width: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  pointer-events: auto;
+}
+
 .br-body { position: relative; flex: 1; min-height: 0; background: #000; }
 .br-body iframe {
   position: absolute;
