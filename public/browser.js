@@ -49,7 +49,7 @@ function hostOf(url) {
   }
 }
 
-export function createBrowser({ onPlay, onNavigate }) {
+export function createBrowser({ onPlay, onNavigate, onClose }) {
   const root = el('browser');
   const frame = el('brFrame');
   const addr = el('brUrl');
@@ -60,17 +60,20 @@ export function createBrowser({ onPlay, onNavigate }) {
   let seq = 0;          // a late reply from an abandoned navigation must not paint
   let shared = false;   // broadcast my navigations to the room
   let following = false; // this navigation came from the room; do not echo it
+  let driving = true;   // false while watching someone else present their browser
 
   // -------------------------------------------------------------- painting
 
   function setBusy(on) {
     el('brBusy').hidden = !on;
-    el('brReload').disabled = on;
+    el('brReload').disabled = on || !driving;
   }
 
+  // Every control is off for a viewer regardless of what the history says, so
+  // these two must agree with setDriving rather than fight it.
   function renderNav() {
-    el('brBack').disabled = at <= 0;
-    el('brFwd').disabled = at < 0 || at >= history.length - 1;
+    el('brBack').disabled = !driving || at <= 0;
+    el('brFwd').disabled = !driving || at < 0 || at >= history.length - 1;
     el('brTab').disabled = !current;
   }
 
@@ -335,6 +338,20 @@ export function createBrowser({ onPlay, onNavigate }) {
     // A page left loaded keeps its audio playing over the film.
     frame.src = 'about:blank';
     frame.hidden = true;
+    onClose?.();
+  }
+
+  /**
+   * Driving means this client's navigation is real. A viewer watching the
+   * presenter's browser as video has no page to move — the controls would
+   * appear to work and change nothing, which is worse than their absence.
+   */
+  function setDriving(on) {
+    driving = !!on;
+    root.dataset.driving = String(driving);
+    for (const id of ['brBack', 'brFwd', 'brReload', 'brGo', 'brShare', 'brUrl']) {
+      el(id).disabled = !on;
+    }
   }
 
   const isOpen = () => !root.hidden;
@@ -412,5 +429,5 @@ export function createBrowser({ onPlay, onNavigate }) {
     if (e.key === 'Escape' && isOpen()) close();
   });
 
-  return { open, close, isOpen, setShared, followRemote, isShared: () => shared };
+  return { open, close, isOpen, setShared, setDriving, followRemote, isShared: () => shared };
 }

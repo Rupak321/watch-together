@@ -348,8 +348,11 @@ function handle(m) {
       return;
 
     case 'browse':
-      // Never bounce a navigation back at the person who sent it.
-      if (m.by !== myId) browser.followRemote(m.url, m.byName);
+      // Never bounce a navigation back at the person who sent it — and never
+      // pull up an overlay over the very screen it would be covering.
+      if (m.by !== myId && !(screenSharerId() && screenSharerId() !== myId)) {
+        browser.followRemote(m.url, m.byName);
+      }
       return;
 
     case 'react':
@@ -727,6 +730,7 @@ function renderState() {
   el('scrub').setAttribute('aria-disabled', String(!allowed));
   el('seekBtn') && (el('seekBtn').disabled = !mayControl);
 
+  renderBrowseTab();
   renderHostControls();
 }
 
@@ -1047,12 +1051,84 @@ const browser = createBrowser({
   },
   onNavigate(url) {
     send({ t: 'browse', url });
+  },
+  /**
+   * Closing the browser ends the showing, rather than leaving the room
+   * staring at a shared tab nobody is driving any more.
+   */
+  onClose() {
+    if (voice?.screenStream && screenSharerId() === myId) {
+      voice.stopScreenShare();
+      send({ t: 'source', source: null });
+      renderScreenButton();
+    }
   }
 });
 
-// Opening lands on whatever page the room is already on, so someone arriving
-// late joins the browsing instead of starting from a blank address bar.
-el('openBrowserBtn').addEventListener('click', () => browser.open(roomState.browseUrl || undefined));
+/**
+ * Who, if anyone, is putting a screen into the room right now.
+ *
+ * This is the whole basis of browser mode: while it is someone else, this
+ * client is a viewer and has no business driving anything.
+ */
+function screenSharerId() {
+  return roomState.source?.kind === 'screen' ? roomState.source.id : null;
+}
+
+/**
+ * The host opens the browser, and the room watches it.
+ *
+ * Sharing the picture rather than the address is what makes this work at all.
+ * Everyone lands on the same *frame* — not the same URL to load separately —
+ * so there is nothing to drift and nothing to synchronise. The room's clock
+ * stays out of it, exactly as it does for any live source.
+ *
+ * The capture has to be asked for inside this click. Browsers only grant a
+ * display capture on a real user gesture, and an await before the ask spends
+ * it — so the overlay is opened first (synchronous, keeps the gesture alive)
+ * and the picker comes up over it, which also makes the tab being chosen the
+ * one already on screen.
+ */
+el('openBrowserBtn').addEventListener('click', async () => {
+  const sharer = screenSharerId();
+  if (sharer && sharer !== myId) {
+    showSrcError(`${roomState.source.title || 'The host'} is showing their browser — it is on the stage.`);
+    return;
+  }
+
+  browser.open(roomState.browseUrl || undefined);
+  if (!isHost || voice?.screenStream) return;
+
+  try {
+    const stream = await voice.startScreenShare();
+    send({
+      t: 'source',
+      source: { kind: 'screen', id: myId, streamId: stream.id, title: `${myName}'s browser` }
+    });
+  } catch (err) {
+    // Dismissing the picker is a decision, not a fault. The browser stays
+    // open and private; the button in the chrome starts the share later.
+    if (err.name !== 'NotAllowedError') {
+      showSrcError('Screen sharing is not available in this browser.');
+    }
+  }
+  renderScreenButton();
+});
+
+/**
+ * In browser mode the address bar, the navigation and the share toggle belong
+ * to whoever is presenting. Everyone else is watching a video of it, where a
+ * back button would be a lie.
+ */
+function renderBrowseTab() {
+  const sharer = screenSharerId();
+  const watching = !!sharer && sharer !== myId;
+
+  el('openBrowserBtn').disabled = watching;
+  el('openBrowserBtn').textContent = isHost ? 'Open the browser and show it' : 'Open the browser';
+  el('browseWatching').hidden = !watching;
+  browser.setDriving(!watching);
+}
 
 function setSourceFromInput() {
   const parsed = identifySource(el('srcInput').value);

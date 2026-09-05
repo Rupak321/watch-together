@@ -20,7 +20,19 @@ const DUCK_UP_MS = 600;      // slow, so it doesn't pump between words
 
 // A shared screen is the thing everyone is actually watching, so it gets real
 // bitrate — unlike cameras, which are thumbnails.
-const SCREEN_BITRATE = 4_000_000;
+//
+// This is a ceiling, not a target. WebRTC's congestion control probes upward
+// and backs off on its own, so a high cap costs nothing on a link that cannot
+// carry it and buys everything on one that can. What it cannot escape is the
+// mesh: the presenter sends a separate copy to every viewer, so their upload
+// is divided by the number of people watching. Four viewers on a 20 Mbit
+// upload is 5 Mbit each, and no setting here changes that arithmetic.
+const SCREEN_BITRATE = 10_000_000;
+
+// Film soundtracks through an Opus track that defaults to speech bitrate is
+// where a shared film actually sounds bad — the picture is usually fine and
+// the audio is thin. This is the one place worth spending on audio.
+const SCREEN_AUDIO_BITRATE = 256_000;
 
 // Camera during playback is capped hard. WebRTC's congestion control adapts in
 // milliseconds while an HTTP video fetch is passive, so an uncapped camera
@@ -167,7 +179,17 @@ export class VoiceMesh {
     if (this.screenStream) return this.screenStream;
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: {
+        // Ideal, never exact: an exact constraint the display cannot meet
+        // fails the whole call rather than degrading, and the one surface
+        // nobody can change is someone else's monitor.
+        frameRate: { ideal: 60 },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        // Opens the picker on the tab list, which is the right answer here
+        // and also the only surface that can carry audio.
+        displaySurface: 'browser'
+      },
       // Tab audio, and without the processing meant for a talking head —
       // echo cancellation and noise suppression wreck a film's soundtrack.
       audio: {
@@ -190,6 +212,7 @@ export class VoiceMesh {
       for (const track of stream.getTracks()) {
         const sender = pc.addTrack(track, stream);
         if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
+        else this.capSender(sender, SCREEN_AUDIO_BITRATE, false);
       }
     }
 
@@ -514,6 +537,7 @@ export class VoiceMesh {
       for (const track of this.screenStream.getTracks()) {
         const sender = pc.addTrack(track, this.screenStream);
         if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
+        else this.capSender(sender, SCREEN_AUDIO_BITRATE, false);
       }
     }
 
