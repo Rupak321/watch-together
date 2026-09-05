@@ -1,0 +1,32 @@
+#!/bin/sh
+# Refuse commit messages that credit anyone but the repository owner.
+#
+# Assistants and tools like to append their own attribution. This history
+# carries one name, so any co-author trailer or "generated with" line is a
+# hard failure rather than something to notice in a diff later.
+
+msg_file="$1"
+
+if grep -qiE '^[[:space:]]*(co-authored-by|signed-off-by|assisted-by)[[:space:]]*:' "$msg_file"; then
+  echo ""
+  echo "  COMMIT BLOCKED — attribution trailer in the message"
+  echo ""
+  grep -inE '^[[:space:]]*(co-authored-by|signed-off-by|assisted-by)[[:space:]]*:' "$msg_file" | sed 's/^/    /'
+  echo ""
+  echo "  This repository credits one author. Remove the trailer and commit again."
+  echo ""
+  exit 1
+fi
+
+if grep -qiE 'generated with|claude\.ai|anthropic|🤖' "$msg_file"; then
+  echo ""
+  echo "  COMMIT BLOCKED — tool credit in the message"
+  echo ""
+  grep -inE 'generated with|claude\.ai|anthropic|🤖' "$msg_file" | sed 's/^/    /'
+  echo ""
+  echo "  Remove it and commit again."
+  echo ""
+  exit 1
+fi
+
+exit 0

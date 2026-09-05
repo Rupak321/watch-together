@@ -1,0 +1,43 @@
+#!/bin/sh
+# Refuse any commit not authored by the repository owner.
+#
+# GitHub attributes commits by email alone, so a stray user.email — from a
+# different tool, a fresh clone, or an environment variable — silently puts
+# somebody else's name and avatar on this history. This makes that a hard
+# failure at commit time instead of a discovery weeks later.
+
+OWNER_EMAIL="rupakpandey431@gmail.com"
+OWNER_NAME="Rupak Pandey"
+
+email="$(git config user.email)"
+name="$(git config user.name)"
+
+if [ "$email" != "$OWNER_EMAIL" ]; then
+  echo ""
+  echo "  COMMIT BLOCKED — wrong author email"
+  echo ""
+  echo "    configured : ${email:-(none)}"
+  echo "    required   : $OWNER_EMAIL"
+  echo ""
+  echo "  Only $OWNER_NAME may commit to this repository."
+  echo "  Fix it with:"
+  echo ""
+  echo "    git config --local user.email \"$OWNER_EMAIL\""
+  echo "    git config --local user.name  \"$OWNER_NAME\""
+  echo ""
+  exit 1
+fi
+
+if [ "$name" != "$OWNER_NAME" ]; then
+  echo ""
+  echo "  COMMIT BLOCKED — wrong author name"
+  echo ""
+  echo "    configured : ${name:-(none)}"
+  echo "    required   : $OWNER_NAME"
+  echo ""
+  echo "    git config --local user.name \"$OWNER_NAME\""
+  echo ""
+  exit 1
+fi
+
+exit 0
