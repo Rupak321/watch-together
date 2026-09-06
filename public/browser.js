@@ -333,6 +333,20 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     b.setAttribute('aria-pressed', String(!!on));
   }
 
+  /**
+   * Say what the room is actually receiving.
+   *
+   * Cropped or not is not cosmetic — uncropped, everything on this tab goes
+   * out, and someone who believes only the page is being sent will find that
+   * out the hard way. So the badge states which one happened.
+   */
+  function setPresenting(cropped) {
+    const led = el('brLed');
+    led.textContent = cropped ? 'showing this pane only' : 'showing your whole tab';
+    led.dataset.warn = String(!cropped);
+    led.hidden = false;
+  }
+
   function open(startUrl, { full = false } = {}) {
     root.hidden = false;
     document.documentElement.classList.add('browsing');
@@ -447,5 +461,5 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     if (e.key === 'Escape' && isOpen()) close();
   });
 
-  return { open, close, isOpen, setShared, setDriving, setFull, followRemote, isShared: () => shared };
+  return { open, close, isOpen, setShared, setDriving, setFull, setPresenting, followRemote, isShared: () => shared };
 }

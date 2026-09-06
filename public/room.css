@@ -817,3 +817,10 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
   .br-addr { order: -1; flex: 1 0 100%; }
   .br-found { max-height: 40vh; }
 }
+
+/* The presenting badge turns amber-on-warning when the crop did not take and
+   the whole tab is going out — a different fact, not a smaller one. */
+.br-led[data-warn="true"] {
+  color: var(--fault);
+  border-color: rgba(196, 86, 74, .45);
+}

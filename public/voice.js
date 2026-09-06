@@ -41,6 +41,56 @@ const SCREEN_AUDIO_BITRATE = 256_000;
 const CAM_PLAYING = { width: 320, height: 180, frameRate: 15, bitrate: 150_000 };
 const CAM_IDLE = { width: 640, height: 360, frameRate: 24, bitrate: 500_000 };
 
+/**
+ * Can this browser send a rectangle of the page rather than the whole tab?
+ *
+ * Two Chromium APIs do it, and they are not the same thing:
+ *
+ *   Element Capture (RestrictionTarget) sends *that element*. Anything drawn
+ *   over it — a dialog, a notification, the browser's own sharing bar — is
+ *   absent from the capture rather than covering it.
+ *
+ *   Region Capture (CropTarget) sends that element's *rectangle*. Whatever
+ *   happens to be on top within those bounds is still in the picture.
+ *
+ * Element Capture is the better answer and the newer one, so it is tried
+ * first. Neither exists in Firefox or Safari, where this degrades to sharing
+ * the tab — which works, it just shows more than was asked for.
+ */
+function canNarrowCapture() {
+  return typeof window !== 'undefined' && ('RestrictionTarget' in window || 'CropTarget' in window);
+}
+
+/**
+ * Narrow a self-capture down to one element. Returns whether it took.
+ *
+ * Every step here is allowed to fail without taking the share with it: a
+ * refused crop leaves a perfectly good full-tab capture, and losing the
+ * whole picture to keep it tidy would be a bad trade.
+ */
+async function narrowToElement(track, element) {
+  if (!track || !element) return false;
+
+  if ('RestrictionTarget' in window && track.restrictTo) {
+    try {
+      await track.restrictTo(await window.RestrictionTarget.fromElement(element));
+      return true;
+    } catch {
+      // Element Capture is fussy about what it will target. Region Capture
+      // takes elements it refuses, so this is worth continuing from.
+    }
+  }
+
+  if ('CropTarget' in window && track.cropTo) {
+    try {
+      await track.cropTo(await window.CropTarget.fromElement(element));
+      return true;
+    } catch {}
+  }
+
+  return false;
+}
+
 export class VoiceMesh {
   /**
    * @param {(msg: object) => void} send      room socket sender
@@ -56,6 +106,7 @@ export class VoiceMesh {
 
     this.localStream = null;
     this.screenStream = null;
+    this.screenCropped = false;  // true when only the browser pane is going out
     this.screenStreamId = null;   // the id we expect a shared screen to arrive under
     this.onMesh = false;
     this.audioCtx = null;
@@ -174,9 +225,14 @@ export class VoiceMesh {
    * `audio: true` matters more than it looks: on Chromium, sharing a tab can
    * carry that tab's audio, which is the difference between sharing a film
    * and sharing a silent film.
+   *
+   * Pass `cropTo` — an element — to send only that rectangle instead of the
+   * whole tab. See narrowToElement for what that costs and where it works.
    */
-  async startScreenShare() {
+  async startScreenShare({ cropTo = null } = {}) {
     if (this.screenStream) return this.screenStream;
+
+    const wantCrop = !!cropTo && canNarrowCapture();
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
@@ -187,8 +243,10 @@ export class VoiceMesh {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
         // Opens the picker on the tab list, which is the right answer here
-        // and also the only surface that can carry audio.
-        displaySurface: 'browser'
+        // and also the only surface that can carry audio. Cropping needs the
+        // capture to be *this* tab specifically, so preferCurrentTab below
+        // takes over the job of choosing and this hint would only fight it.
+        ...(wantCrop ? {} : { displaySurface: 'browser' })
       },
       // Tab audio, and without the processing meant for a talking head —
       // echo cancellation and noise suppression wreck a film's soundtrack.
@@ -196,9 +254,17 @@ export class VoiceMesh {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false
-      }
+      },
+      // Cropping only works on a self-capture, so the picker has to be
+      // pointed at the tab we are already in.
+      ...(wantCrop ? { preferCurrentTab: true } : {})
     });
     this.screenStream = stream;
+    this.screenCropped = false;
+
+    if (wantCrop) {
+      this.screenCropped = await narrowToElement(stream.getVideoTracks()[0], cropTo);
+    }
 
     // Tell the encoder this is moving pictures, not a slide of text. Without
     // it the default assumption is a shared document, and it holds detail at
@@ -230,6 +296,7 @@ export class VoiceMesh {
     const stream = this.screenStream;
     if (!stream) return;
     this.screenStream = null;
+    this.screenCropped = false;
 
     for (const { pc } of this.peers.values()) {
       for (const sender of pc.getSenders()) {

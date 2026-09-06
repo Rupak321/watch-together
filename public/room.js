@@ -1100,14 +1100,20 @@ el('openBrowserBtn').addEventListener('click', async () => {
   if (!isHost || voice?.screenStream) return;
 
   try {
-    const stream = await voice.startScreenShare();
+    // Crop the capture to the browser's own pane, so what goes out is the
+    // page and nothing else — not the address bar, not the roster, not the
+    // chat. Where the browser cannot do that, the whole tab still goes.
+    const stream = await voice.startScreenShare({ cropTo: el('brBody') });
     send({
       t: 'source',
       source: { kind: 'screen', id: myId, streamId: stream.id, title: `${myName}'s browser` }
     });
-    // Presenting fills the window: the tab being captured should carry the
-    // page, not this side of the room.
+
+    // Expanding still matters even when cropped. The capture is taken at the
+    // tab's resolution and the crop discards the rest, so a small pane sends
+    // a small picture — filling the window is what makes the crop sharp.
     browser.setFull(true);
+    browser.setPresenting(voice.screenCropped);
   } catch (err) {
     // Dismissing the picker is a decision, not a fault. The browser stays
     // open and private; the button in the chrome starts the share later.
