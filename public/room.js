@@ -1105,6 +1105,9 @@ el('openBrowserBtn').addEventListener('click', async () => {
       t: 'source',
       source: { kind: 'screen', id: myId, streamId: stream.id, title: `${myName}'s browser` }
     });
+    // Presenting fills the window: the tab being captured should carry the
+    // page, not this side of the room.
+    browser.setFull(true);
   } catch (err) {
     // Dismissing the picker is a decision, not a fault. The browser stays
     // open and private; the button in the chrome starts the share later.
