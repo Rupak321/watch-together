@@ -319,21 +319,6 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
   }
 
   /**
-   * Docked in the stage box, or filling the window.
-   *
-   * Docked is the default because browsing is something you do *while* the
-   * room is around you — the roster, the chat and the picker all stay where
-   * they were. Expanded exists for presenting, where the shared tab should
-   * carry the page and not the host's own sidebar.
-   */
-  function setFull(on) {
-    root.dataset.full = String(!!on);
-    const b = el('brFull');
-    b.textContent = on ? 'Restore' : 'Expand';
-    b.setAttribute('aria-pressed', String(!!on));
-  }
-
-  /**
    * Say what the room is actually receiving.
    *
    * Cropped or not is not cosmetic — uncropped, everything on this tab goes
@@ -347,10 +332,9 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     led.hidden = false;
   }
 
-  function open(startUrl, { full = false } = {}) {
+  function open(startUrl) {
     root.hidden = false;
     document.documentElement.classList.add('browsing');
-    setFull(full);
     moveRail(el('brRail'));
     if (startUrl) {
       go(startUrl);
@@ -368,7 +352,6 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     // A page left loaded keeps its audio playing over the film.
     frame.src = 'about:blank';
     frame.hidden = true;
-    setFull(false);
     onClose?.();
   }
 
@@ -453,7 +436,6 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     b.addEventListener('click', () => go(b.dataset.goto));
   }
 
-  el('brFull').addEventListener('click', () => setFull(root.dataset.full !== 'true'));
   el('brShare').addEventListener('click', () => setShared(!shared));
   renderShare();
 
@@ -461,5 +443,5 @@ export function createBrowser({ onPlay, onNavigate, onClose }) {
     if (e.key === 'Escape' && isOpen()) close();
   });
 
-  return { open, close, isOpen, setShared, setDriving, setFull, setPresenting, followRemote, isShared: () => shared };
+  return { open, close, isOpen, setShared, setDriving, setPresenting, followRemote, isShared: () => shared };
 }

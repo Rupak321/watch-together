@@ -590,61 +590,24 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
    dimmed with no way to opt out. Sitting above the room instead sidesteps
    that, and gives the frame the size a browser actually wants.                */
 
-/* Docked: the same grid cell as the stage, so it sits exactly where the film
-   would and the roster, chat and picker stay where they were.
-
-   It is a sibling of .stage-wrap rather than a child of it on purpose. The
-   stage carries a brightness filter while the lights are up, a filter applies
-   to every descendant, and — worse for the expanded state below — it makes
-   the stage a containing block for anything positioned fixed inside it. Out
-   here neither applies. */
+/* A window over the whole room rather than a panel inside it. The stage is
+   under a brightness filter while the lights are up, and a filter applies to
+   every descendant — a browser living inside the stage would be permanently
+   dimmed with no way to opt out. Sitting above the room instead sidesteps
+   that, and gives the frame the size a browser actually wants. */
 .browser {
-  grid-row: 2;
-  grid-column: 1;
-  align-self: start;
-  aspect-ratio: 16 / 9;
-  min-width: 0;
-  z-index: 12;
-  display: flex;
-  flex-direction: column;
-  background: var(--ink);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  overflow: hidden;
-  animation: br-in 180ms var(--ease);
-}
-
-/* Expanded: the whole window, for presenting. A shared tab carries whatever
-   is on it, so a host showing the room its browser should be showing the
-   page — not their own sidebar and chat. */
-.browser[data-full="true"] {
   position: fixed;
   inset: 0;
   z-index: 40;
-  aspect-ratio: auto;
-  border: 0;
-  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+  animation: br-in 180ms var(--ease);
 }
 
 @keyframes br-in { from { opacity: 0; transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { .browser { animation: none; } }
 
-/* Docked, the box is roughly a third the height it has when expanded, and
-   two bars of browser chrome would eat the page. Everything shrinks; nothing
-   is dropped, because a control that disappears at one size is a control
-   people stop trusting. */
-.browser:not([data-full="true"]) .br-chrome { padding: 7px 8px; gap: 5px; }
-.browser:not([data-full="true"]) .br-chrome button { min-height: 30px; padding: 5px 9px; font-size: 0.75rem; }
-.browser:not([data-full="true"]) .br-nav { width: 30px; padding: 0; }
-.browser:not([data-full="true"]) .br-addr input { min-height: 30px; padding: 6px 28px 6px 10px; font-size: 0.75rem; }
-.browser:not([data-full="true"]) .br-call { padding: 5px 8px; min-height: 40px; gap: 6px; }
-.browser:not([data-full="true"]) .br-call button { min-height: 28px; padding: 4px 9px; font-size: 0.6875rem; }
-.browser:not([data-full="true"]) .br-found { max-height: 30%; padding: 8px 11px 10px; }
-.browser:not([data-full="true"]) .br-intro,
-.browser:not([data-full="true"]) .br-card { padding: 18px 20px; }
-.browser:not([data-full="true"]) .br-intro h2,
-.browser:not([data-full="true"]) .br-card h2 { font-size: 1.125rem; }
-.browser:not([data-full="true"]) .br-quick button { min-height: 30px; padding: 6px 10px; font-size: 0.75rem; }
 
 .br-chrome {
   display: flex;

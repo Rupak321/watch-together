@@ -1109,10 +1109,6 @@ el('openBrowserBtn').addEventListener('click', async () => {
       source: { kind: 'screen', id: myId, streamId: stream.id, title: `${myName}'s browser` }
     });
 
-    // Expanding still matters even when cropped. The capture is taken at the
-    // tab's resolution and the crop discards the rest, so a small pane sends
-    // a small picture — filling the window is what makes the crop sharp.
-    browser.setFull(true);
     browser.setPresenting(voice.screenCropped);
   } catch (err) {
     // Dismissing the picker is a decision, not a fault. The browser stays
