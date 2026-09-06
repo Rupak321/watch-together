@@ -787,3 +787,10 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
   color: var(--fault);
   border-color: rgba(196, 86, 74, .45);
 }
+
+/* Live sources have no position to scrub to and no Play to press. The bar
+   still matters — Full screen and the volume mixer live there — so the
+   controls stay and only the meaningless parts go. */
+.room[data-live="true"] .scrub,
+.room[data-live="true"] .clock { display: none; }
+.room[data-live="true"] #playBtn { display: none; }

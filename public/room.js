@@ -315,7 +315,15 @@ function handle(m) {
       else clearSource();
       if (!m.playing) pendingStart = null;
       desiredPlaying = !!m.playing;
-      setMode(m.playing ? 'house' : 'foyer');
+
+      // A shared screen is playing by definition — there is no Play to press,
+      // so `playing` stays false for it and the room used to sit in the foyer
+      // with the controls bar hidden. That bar is where Full screen lives,
+      // which is why a viewer watching a presented browser had no way to fill
+      // their screen with it.
+      const live = m.source?.kind === 'screen';
+      el('room').dataset.live = String(live);
+      setMode(m.playing || live ? 'house' : 'foyer');
       // Cameras run at a lower profile once the film starts, and relax again
       // when it stops.
       voice?.reprofileCamera(!!m.playing);

@@ -783,8 +783,23 @@ export class VoiceMesh {
     if (!entry) return;
 
     const live = (t) => t.readyState === 'live';
-    const audioStream = entry.streams.find((s) => s.getAudioTracks().some(live));
-    const videoStream = entry.streams.find((s) => s.getVideoTracks().some(live));
+
+    /**
+     * The shared screen is not this peer's microphone or camera, and must be
+     * left out of both.
+     *
+     * ontrack sends it to the stage and returns early, but it was still being
+     * pushed onto entry.streams first — so the search below found the screen's
+     * *tab audio* and pointed the hidden per-peer <audio> element at it. The
+     * stage <video> was already playing that same track, so the film's
+     * soundtrack was decoded twice, a few tens of milliseconds apart. That is
+     * the echo: not the room, not the microphone, one film playing against
+     * itself. The video half was worse in its own way — a peer's face tile
+     * would fill with the film.
+     */
+    const own = entry.streams.filter((s) => s.id !== this.screenStreamId);
+    const audioStream = own.find((s) => s.getAudioTracks().some(live));
+    const videoStream = own.find((s) => s.getVideoTracks().some(live));
 
     if (audioStream) {
       // A WebRTC stream needs a media element attached before audio flows,

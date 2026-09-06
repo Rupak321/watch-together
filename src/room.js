@@ -106,6 +106,13 @@ export class Room {
         }
         ws.serializeAttachment(att);
 
+        // A screen source only means anything while the person sending it is
+        // still here. Disconnect clears it, but a socket that died without a
+        // close event leaves it behind — and then everyone arriving after is
+        // told the host is presenting, and waits on a stream that is never
+        // coming. Checking on the way in costs nothing and cannot go stale.
+        if (this.pruneDeadScreen()) await this.save();
+
         ws.send(JSON.stringify({ t: 'you', id: att.id, host: this.isHost(ws) }));
         ws.send(JSON.stringify({ t: 'state', ...this.publicState() }));
         ws.send(JSON.stringify({ t: 'history', messages: this.chat }));
@@ -311,6 +318,27 @@ export class Room {
     }
 
     this.broadcastRoster();
+  }
+
+  /**
+   * Drop a shared screen whose sender is no longer connected.
+   *
+   * Returns whether anything changed, so the caller can decide about saving
+   * and broadcasting rather than doing it on every join.
+   */
+  pruneDeadScreen() {
+    const src = this.state.source;
+    if (src?.kind !== 'screen') return false;
+
+    const present = this.ctx
+      .getWebSockets()
+      .some((s) => (s.deserializeAttachment() || {}).id === src.id);
+    if (present) return false;
+
+    this.state.source = null;
+    this.state.playing = false;
+    this.state.phase = 'idle';
+    return true;
   }
 
   /** Is this person present under some other socket? (i.e. a reconnect) */
