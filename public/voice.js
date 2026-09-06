@@ -27,7 +27,56 @@ const DUCK_UP_MS = 600;      // slow, so it doesn't pump between words
 // mesh: the presenter sends a separate copy to every viewer, so their upload
 // is divided by the number of people watching. Four viewers on a 20 Mbit
 // upload is 5 Mbit each, and no setting here changes that arithmetic.
-const SCREEN_BITRATE = 10_000_000;
+const SCREEN_BITRATE = 16_000_000;
+
+/**
+ * Ask the capture for the display's real pixels rather than a fixed 1080p.
+ *
+ * A constraint of 1920 on a high-DPI panel is a *downscale* — the tab is
+ * already being painted at more than that, and asking for less throws the
+ * detail away before the encoder ever sees it. Cropping makes this sharper
+ * still: the crop keeps a rectangle of the captured frame, so the frame it
+ * is cut from wants to be as large as the display can give.
+ *
+ * Capped at 4K because past there the bitrate is real and the visible gain
+ * is not.
+ */
+function captureSize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round((window.screen?.width || 1920) * dpr);
+  const h = Math.round((window.screen?.height || 1080) * dpr);
+  const scale = Math.min(1, 3840 / w, 2160 / h);
+  return { width: Math.round(w * scale), height: Math.round(h * scale) };
+}
+
+/**
+ * Put the efficient codecs first.
+ *
+ * VP9 carries noticeably more picture per bit than VP8 or H.264, which is the
+ * single largest quality lever left once the bitrate ceiling is high enough
+ * to be irrelevant. AV1 is better still on paper and much heavier to encode
+ * in real time, so it sits behind VP9 rather than in front of it.
+ *
+ * This only reorders a preference. Negotiation still has to find a codec both
+ * ends support, so a peer without VP9 quietly gets what it can decode — and
+ * every entry is kept, including the retransmission and FEC ones, because a
+ * list that drops them breaks more than it tunes.
+ */
+function preferEfficientCodec(pc, sender) {
+  try {
+    const tr = pc.getTransceivers?.().find((t) => t.sender === sender);
+    const caps = window.RTCRtpSender?.getCapabilities?.('video');
+    if (!tr?.setCodecPreferences || !caps?.codecs) return;
+
+    const rank = (c) => {
+      const m = c.mimeType.toLowerCase();
+      if (m.endsWith('/vp9')) return 0;
+      if (m.endsWith('/av1') || m.endsWith('/av01')) return 1;
+      return 2;
+    };
+    tr.setCodecPreferences([...caps.codecs].sort((a, b) => rank(a) - rank(b)));
+  } catch {}
+}
 
 // Film soundtracks through an Opus track that defaults to speech bitrate is
 // where a shared film actually sounds bad — the picture is usually fine and
@@ -233,15 +282,19 @@ export class VoiceMesh {
     if (this.screenStream) return this.screenStream;
 
     const wantCrop = !!cropTo && canNarrowCapture();
+    const size = captureSize();
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
         // Ideal, never exact: an exact constraint the display cannot meet
         // fails the whole call rather than degrading, and the one surface
         // nobody can change is someone else's monitor.
-        frameRate: { ideal: 60 },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        // 30, not 60: the content is 24fps film, so the second half of a
+        // 60fps budget buys duplicate frames instead of picture. Spending it
+        // on resolution instead is the whole trade.
+        frameRate: { ideal: 30 },
+        width: { ideal: size.width },
+        height: { ideal: size.height },
         // Opens the picker on the tab list, which is the right answer here
         // and also the only surface that can carry audio. Cropping needs the
         // capture to be *this* tab specifically, so preferCurrentTab below
@@ -277,8 +330,14 @@ export class VoiceMesh {
     for (const { pc } of this.peers.values()) {
       for (const track of stream.getTracks()) {
         const sender = pc.addTrack(track, stream);
-        if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
-        else this.capSender(sender, SCREEN_AUDIO_BITRATE, false);
+        if (track.kind === 'video') {
+          // Detail before motion. The source is 24fps film, so frames given up
+          // under strain cost far less than the sharpness they buy back.
+          this.capSender(sender, SCREEN_BITRATE, 'maintain-resolution');
+          preferEfficientCodec(pc, sender);
+        } else {
+          this.capSender(sender, SCREEN_AUDIO_BITRATE);
+        }
       }
     }
 
@@ -470,7 +529,7 @@ export class VoiceMesh {
 
     for (const { pc } of this.peers.values()) {
       const sender = pc.addTrack(track, this.localStream);
-      this.capSender(sender, profile.bitrate);
+      this.capSender(sender, profile.bitrate, 'maintain-framerate');
     }
     this.camOn = true;
     this.hooks.onPeerStream?.(this.myId, this.localStream);
@@ -490,20 +549,24 @@ export class VoiceMesh {
     } catch {}
     for (const { pc } of this.peers.values()) {
       for (const sender of pc.getSenders()) {
-        if (sender.track?.kind === 'video') this.capSender(sender, profile.bitrate);
+        if (sender.track?.kind === 'video') this.capSender(sender, profile.bitrate, 'maintain-framerate');
       }
     }
   }
 
-  async capSender(sender, bitrate, motion) {
+  /**
+   * @param degrade  what to give up first when the link cannot keep up:
+   *                 'maintain-resolution' holds detail and lets frames go,
+   *                 'maintain-framerate' holds motion and lets detail go.
+   */
+  async capSender(sender, bitrate, degrade) {
     try {
       const params = sender.getParameters();
       params.encodings = params.encodings?.length ? params.encodings : [{}];
       params.encodings[0].maxBitrate = bitrate;
-      if (motion) {
-        // Under strain, drop resolution before frame rate. A soft picture
-        // that still moves beats a sharp one that stutters through a film.
-        params.degradationPreference = 'maintain-framerate';
+      if (degrade) {
+        params.degradationPreference = degrade;
+        // Never send a downscaled copy of something this size on purpose.
         delete params.encodings[0].scaleResolutionDownBy;
       }
       await sender.setParameters(params);
@@ -603,8 +666,14 @@ export class VoiceMesh {
     if (this.screenStream) {
       for (const track of this.screenStream.getTracks()) {
         const sender = pc.addTrack(track, this.screenStream);
-        if (track.kind === 'video') this.capSender(sender, SCREEN_BITRATE, true);
-        else this.capSender(sender, SCREEN_AUDIO_BITRATE, false);
+        if (track.kind === 'video') {
+          // Detail before motion. The source is 24fps film, so frames given up
+          // under strain cost far less than the sharpness they buy back.
+          this.capSender(sender, SCREEN_BITRATE, 'maintain-resolution');
+          preferEfficientCodec(pc, sender);
+        } else {
+          this.capSender(sender, SCREEN_AUDIO_BITRATE);
+        }
       }
     }
 
