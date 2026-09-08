@@ -14,104 +14,132 @@
 </head>
 <body>
 
-<div class="shell">
+<!-- Bands run the full width of the viewport; .wrap holds the gutter, so
+     backgrounds reach the edges and text never does. -->
 
-  <header class="masthead">
+<header class="masthead">
+  <div class="wrap masthead-in">
     <div class="wordmark">Watch<span>·</span>Together</div>
     <span class="eyebrow">Free · no account</span>
-  </header>
-
-  <div class="hero">
-    <span class="eyebrow">One film, one clock</span>
-    <h1>Everyone on the same frame</h1>
-    <p class="lede">Open a room, paste a link, share the code. Your playheads stay locked
-      within about a tenth of a second — and you can talk the whole way through.</p>
   </div>
+</header>
 
-  <div class="entry">
-    <div class="entry-card">
-      <h2>Start a room</h2>
-      <p>You get a code to share. Nothing to install, no sign-up.</p>
-      <button id="createBtn">Start a room</button>
+<section class="hero">
+  <div class="wrap hero-in">
+
+    <div class="hero-say">
+      <span class="eyebrow">One film, one clock</span>
+      <h1>Everyone on the same frame</h1>
+      <p class="lede">Open a room, paste a link, share the code. Your playheads stay locked
+        within about a tenth of a second — and you can talk the whole way through.</p>
     </div>
 
-    <div class="divider">or</div>
-
-    <div class="entry-card">
-      <h2>Join a room</h2>
-      <p>Someone already sent you a six-character code.</p>
-      <div class="join-row">
-        <input id="joinCode" class="code" placeholder="KX7P2M" maxlength="6"
-               autocomplete="off" spellcheck="false" aria-label="Room code">
-        <button class="ghost" id="joinBtn">Join</button>
+    <!-- The reason anyone is on this page sits beside the headline rather than
+         under it, so the wider the screen the sooner it is reachable. -->
+    <div class="entry">
+      <div class="entry-card">
+        <h2>Start a room</h2>
+        <p>You get a code to share. Nothing to install, no sign-up.</p>
+        <button id="createBtn">Start a room</button>
       </div>
+
+      <div class="entry-or"><span>or</span></div>
+
+      <div class="entry-card">
+        <h2>Join a room</h2>
+        <p>Someone already sent you a six-character code.</p>
+        <div class="join-row">
+          <input id="joinCode" class="code" placeholder="KX7P2M" maxlength="6"
+                 autocomplete="off" spellcheck="false" aria-label="Room code">
+          <button class="ghost" id="joinBtn">Join</button>
+        </div>
+      </div>
+
+      <p class="notice err" id="homeNotice" hidden></p>
     </div>
+
   </div>
+</section>
 
-  <p class="notice err" id="homeNotice" hidden></p>
+<section class="block">
+  <div class="wrap">
+    <div class="block-head">
+      <span class="eyebrow">Sources</span>
+      <h2>Bring your own</h2>
+    </div>
 
-  <section class="block">
-    <span class="eyebrow">Sources</span>
-    <h2>Bring your own</h2>
     <div class="sources">
-      <div class="source">
+      <article class="source">
+        <span class="tag live">Ready</span>
         <h3>YouTube</h3>
         <p>Paste any watch link. Nothing to upload, and it streams from YouTube's own network.</p>
+      </article>
+      <article class="source">
         <span class="tag live">Ready</span>
-      </div>
-      <div class="source">
         <h3>Direct video link</h3>
         <p>Any URL that points straight at an MP4. Your own server, your own storage.</p>
+      </article>
+      <article class="source">
         <span class="tag live">Ready</span>
-      </div>
-      <div class="source">
         <h3>Internet Archive</h3>
         <p>Search tens of thousands of public-domain films and play one in seconds.</p>
+      </article>
+      <article class="source">
         <span class="tag live">Ready</span>
-      </div>
-      <div class="source">
         <h3>Screen share</h3>
-        <p>For anything the others can't reach. Quality is capped by your upload speed.</p>
-        <span class="tag">Next</span>
-      </div>
-      <div class="source">
+        <p>For anything the others can't reach. Only the pane you choose leaves your machine.</p>
+      </article>
+      <article class="source">
+        <span class="tag live">Ready</span>
         <h3>Voice and camera</h3>
         <p>Talk while you watch. Camera stays your choice; the app manages the quality.</p>
+      </article>
+      <article class="source">
         <span class="tag">Next</span>
-      </div>
+        <h3>HLS streams</h3>
+        <p>Live and adaptive playlists, once the origin allows cross-origin segment reads.</p>
+      </article>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="block">
-    <span class="eyebrow">How it holds</span>
-    <h2>Three things, in order</h2>
-    <div class="steps">
-      <div class="step">
+<section class="block">
+  <div class="wrap">
+    <div class="block-head">
+      <span class="eyebrow">How it holds</span>
+      <h2>Three things, in order</h2>
+    </div>
+
+    <ol class="steps">
+      <li class="step">
         <span class="n">First</span>
         <h3>Everyone agrees on the time</h3>
         <p>Each browser measures its own offset from the room's clock, keeping the fastest
           reading of the last eight rather than the average.</p>
-      </div>
-      <div class="step">
+      </li>
+      <li class="step">
         <span class="n">Then</span>
         <h3>Nobody starts until everyone can</h3>
         <p>Press play and the room waits for each person to buffer, then starts everyone on
           the same future timestamp. Anyone still loading gets pulled in after.</p>
-      </div>
-      <div class="step">
+      </li>
+      <li class="step">
         <span class="n">Throughout</span>
         <h3>Corrections you can't hear</h3>
         <p>Falling behind speeds your playback up by a few percent instead of jumping the
           video. No stutter, no jolt, and nothing audible.</p>
-      </div>
-    </div>
-  </section>
+      </li>
+    </ol>
+  </div>
+</section>
 
-  <p class="foot">Bring content you have the right to watch — your own files, your own media
-    server, YouTube, or the public domain. Rooms are private and unlisted, and codes are the
-    only way in.</p>
-
-</div>
+<footer class="foot">
+  <div class="wrap">
+    <p>Bring content you have the right to watch — your own files, your own media server,
+      YouTube, or the public domain. Rooms are private and unlisted, and codes are the only
+      way in.</p>
+  </div>
+</footer>
 
 <script src="/home.js"></script>
 </body>

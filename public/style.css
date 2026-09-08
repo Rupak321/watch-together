@@ -27,6 +27,13 @@
 
   --ease: cubic-bezier(.4, 0, .2, 1);
 
+  /* One layout margin for the whole app. Grows with the viewport so a wide
+     monitor gets breathing room at the edges without the content being
+     parked in a column down the middle. Safe-area insets are added rather
+     than replaced, so a notched phone in landscape keeps text clear of the
+     cutout. */
+  --gutter: calc(clamp(18px, 4vw, 72px) + env(safe-area-inset-left, 0px));
+
   color-scheme: dark;
 }
 
@@ -37,6 +44,11 @@
 [hidden] { display: none !important; }
 
 html, body { min-height: 100%; }
+
+/* Nothing should ever scroll sideways. This is the guard, not the fix — the
+   causes are handled where they arise, with min-width:0 on grid and flex
+   children and a measure on anything holding prose. */
+html { overflow-x: hidden; }
 
 body {
   margin: 0;
@@ -60,6 +72,10 @@ h1, h2, h3 {
 }
 
 p { margin: 0; }
+
+/* A pasted URL, a room code, a long unbroken filename: none of them may push
+   a container wider than its column. */
+p, h1, h2, h3, li, dd, .mono { overflow-wrap: anywhere; }
 
 .eyebrow {
   font-family: var(--mono);
@@ -145,6 +161,15 @@ a { color: var(--lamp); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* --------------------------------------------------------------- shared */
+
+/* The join gate is the one place a narrow measured column is right: a single
+   short form, nothing to lay out around it. */
+.shell {
+  width: 100%;
+  max-width: 460px;
+  margin-inline: auto;
+  padding: clamp(56px, 14vh, 130px) var(--gutter) 60px;
+}
 
 .field { display: flex; flex-direction: column; }
 .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }

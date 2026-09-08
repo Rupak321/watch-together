@@ -7,14 +7,30 @@
 body { overflow-x: hidden; }
 
 .room {
-  --gutter: 20px;
-  --side: 300px;
+  /* Fluid, and wider than it was: a 300px column beside a 2500px stage read
+     as an afterthought. The stage still gets everything left over. */
+  --gutter: clamp(12px, 1.5vw, 30px);
+  --side: clamp(296px, 22vw, 400px);
+  /* Room chrome above and below the stage — the head, the title row and the
+     gutters. The stage is capped against this so it never pushes the page
+     into a vertical scroll. */
+  --chrome: 208px;
+  /* One width for the stage and for the row beneath it, so their edges line
+     up instead of the title floating out at the column's far corners. */
+  --stage-w: min(100%, calc((100dvh - var(--chrome)) * 16 / 9));
 
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* Definite, not a minimum. An fr track has no free space to divide when
+     the container's height is auto, so it falls back to sizing by content —
+     which is how a tall sidebar grew the row it was supposed to be confined
+     by, and pushed Play off the bottom of the screen. */
+  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: 1fr var(--side);
-  grid-template-rows: auto 1fr;
+  /* minmax(0, 1fr) rather than 1fr: a plain 1fr track refuses to shrink
+     below its content, so a tall sidebar grew the row and pushed the title
+     row — and Play with it — off the bottom of the screen. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 18px;
   padding: var(--gutter);
   background: var(--foyer);
@@ -81,15 +97,33 @@ body { overflow-x: hidden; }
 
 /* ------------------------------------------------------------------ stage */
 
+/* Height-capped, not just width-driven.
+   
+   A 16:9 box in a 1fr column is as tall as the column is wide, so on a wide
+   monitor the stage grew past the viewport and the whole room scrolled to
+   see the film. Capping the *width* against the height available keeps the
+   aspect exact — letterboxing inside the frame would be the alternative, and
+   a black bar you cannot get rid of is worse than a smaller picture. */
 .stage-wrap {
   position: relative;
   min-width: 0;
-  align-self: start;
+  /* Centred in its row, not pinned to the top: the row is taller than a
+     height-capped 16:9 frame, and splitting that slack above and below reads
+     as a screen in a room rather than a picture that slid upward. */
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: var(--stage-w);
   background: #000;
   border-radius: 4px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  transition: border-radius 900ms var(--ease);
+  transition: border-radius 900ms var(--ease), max-width 900ms var(--ease);
+}
+/* Lights down: the head and the title row are gone, so the stage may have
+   the lot. */
+.room[data-mode="house"] {
+  --chrome: 0px;
 }
 .room[data-mode="house"] .stage-wrap { border-radius: 0; }
 
@@ -332,7 +366,11 @@ body { overflow-x: hidden; }
 .room[data-mode="house"] .stage-wrap.awake { cursor: default; }
 .room[data-mode="house"] .stage-wrap { cursor: none; }
 
-.ctrl-row { display: flex; align-items: center; gap: 8px; }
+/* Wraps, because it must. This row holds ten-odd controls inside a frame
+   with overflow:hidden, so anything that does not fit is not clipped
+   gracefully — it disappears, and Full screen and Lights were the first to
+   go on a narrow stage. */
+.ctrl-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 7px; }
 
 /* ------------------------------------------------------------- seek bar */
 
@@ -411,6 +449,10 @@ body { overflow-x: hidden; }
 
 .under {
   grid-column: 1;
+  grid-row: 3;
+  width: 100%;
+  max-width: var(--stage-w);
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 18px;
@@ -423,6 +465,13 @@ body { overflow-x: hidden; }
 .room[data-mode="house"] .under { max-height: 0; opacity: 0; }
 
 .under .title-block { min-width: 0; flex: 1 1 240px; }
+.under .title-block h2 {
+  font-size: 1.0625rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.under .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .under h2 {
   font-size: clamp(1.25rem, 3vw, 1.75rem);
   font-variation-settings: "wdth" 84, "opsz" 30;
@@ -432,15 +481,21 @@ body { overflow-x: hidden; }
   white-space: nowrap;
 }
 .under .meta { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
-.under .actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.under .actions { display: flex; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; }
 
 /* ------------------------------------------------------------------- side */
 
 .side {
+  /* Confined to the flexible row and scrolls its own contents. Spanning
+     into the title row instead let the sidebar's height inflate that track —
+     an auto row sized by whatever spans it — which is the very thing this is
+     meant to stop. */
   grid-row: 2;
   grid-column: 2;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -538,13 +593,16 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 .chat-log .who { color: var(--lamp); }
 .chat-log .sys { color: var(--muted); font-style: italic; }
 .chat-form { display: flex; gap: 7px; }
-.chat-form input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; }
+.chat-form input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; min-width: 0; }
 .chat-form button { min-height: 40px; padding: 9px 13px; }
 
 /* source picker */
-.src-tabs { display: flex; gap: 4px; margin-bottom: 11px; }
+.src-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 11px; }
 .src-tabs button {
-  flex: 1;
+  /* flex-basis over a fixed 1fr: four tabs go two-and-two in a narrow
+     sidebar rather than squeezing their labels out of their own boxes. */
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
   min-height: 32px;
   padding: 6px 8px;
   font-size: 0.75rem;
@@ -560,7 +618,7 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 }
 .src-pane[hidden] { display: none; }
 .src-pane .row { align-items: stretch; }
-.src-pane input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; }
+.src-pane input { min-height: 40px; padding: 9px 11px; font-size: 0.875rem; min-width: 0; }
 .src-pane button { min-height: 40px; padding: 9px 13px; }
 .src-hint { font-size: 0.75rem; color: var(--faint); margin-top: 8px; }
 
@@ -771,9 +829,24 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 /* ----------------------------------------------------------------- mobile */
 
 @media (max-width: 860px) {
+  /* One column: rows size to their content and the page scrolls as a whole,
+     so neither the stage nor the sidebar needs a track of its own. */
   .room, .room[data-mode="house"] { grid-template-columns: 1fr; }
-  .side { grid-column: 1; grid-row: auto; }
+  /* One column scrolls as a page, so the height goes back to being a floor
+     rather than a ceiling. */
+  .room { grid-template-rows: none; height: auto; min-height: 100dvh; }
+  .side {
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
   .room[data-mode="house"] .side { display: none; }
+  /* The head wraps to two lines here, and a 60px ceiling cut the second one
+     off — taking Leave and the connection state with it. Still a number
+     rather than none, so the lights-down transition still animates. */
+  .room-head { max-height: 148px; }
+
   .chat-log { max-height: 30vh; }
 
   .br-chrome { flex-wrap: wrap; }

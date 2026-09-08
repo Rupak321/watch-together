@@ -1,19 +1,28 @@
-/* Home. Quiet and confident — the boldness is spent on the room's transition. */
+/* Home. Quiet and confident — the boldness is spent on the room's transition.
 
-.shell {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 24px 96px;
+   Full-bleed by construction: every band runs the whole viewport and .wrap
+   carries the gutter. Backgrounds reach the edges, text never does, and a
+   wide monitor gets more layout rather than more empty margin. */
+
+.wrap {
+  width: 100%;
+  padding-inline: var(--gutter);
+  margin-inline: auto;
 }
 
 /* --------------------------------------------------------------- masthead */
 
 .masthead {
+  border-bottom: 1px solid var(--rule);
+  background: var(--ink);
+}
+.masthead-in {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 26px 0;
+  flex-wrap: wrap;
+  padding-block: 20px;
 }
 .wordmark {
   font-family: var(--display);
@@ -26,19 +35,17 @@
 .wordmark span { color: var(--lamp); }
 
 /* ------------------------------------------------------------------- hero
-   A band of projected light with the headline sitting in it — the screen
-   is the subject, so the hero is a screen. */
+   A band of projected light. The headline is the subject, so the light
+   falls behind it and the way in sits beside it. */
 
 .hero {
   position: relative;
-  border-radius: 6px;
   overflow: hidden;
-  padding: clamp(40px, 8vw, 78px) clamp(24px, 5vw, 60px);
+  border-bottom: 1px solid var(--foyer-raised);
   background:
     radial-gradient(120% 150% at 18% 8%, rgba(232, 163, 61, .17) 0%, rgba(232, 163, 61, 0) 58%),
     radial-gradient(90% 120% at 88% 96%, rgba(201, 162, 39, .12) 0%, rgba(201, 162, 39, 0) 62%),
     linear-gradient(162deg, var(--foyer) 0%, #1B1216 62%, var(--ink) 100%);
-  border: 1px solid var(--foyer-raised);
 }
 
 /* A faint sweep, like light falling across a screen. Ambient, not a show. */
@@ -55,40 +62,69 @@
   50% { transform: translateX(30%); }
 }
 
+.hero-in {
+  position: relative;   /* above the sweep */
+  z-index: 1;
+  display: grid;
+  gap: clamp(36px, 4vw, 72px);
+  align-items: center;
+  padding-block: clamp(48px, 9vh, 104px);
+}
+
+/* Two columns only once the entry panel can hold its own width without
+   squeezing the headline — content decides this, not a device size. */
+@media (min-width: 1000px) {
+  .hero-in { grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr); }
+}
+
 .hero h1 {
-  font-size: clamp(2.5rem, 8vw, 4.75rem);
+  font-size: clamp(2.5rem, 6.4vw, 5.25rem);
   font-variation-settings: "wdth" 80, "opsz" 96;
   margin-bottom: 20px;
-  max-width: 22ch;
+  max-width: 18ch;
 }
 .hero .lede {
-  font-size: clamp(1rem, 2.2vw, 1.1875rem);
+  font-size: clamp(1rem, 1.5vw, 1.1875rem);
   color: var(--dim);
-  max-width: 54ch;
+  max-width: 52ch;
 }
-.hero .eyebrow { display: block; margin-bottom: 22px; }
+.hero .eyebrow { display: block; margin-bottom: 20px; }
 
 /* ------------------------------------------------------------------ entry */
 
 .entry {
-  margin-top: 28px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+  max-width: 520px;
+  justify-self: end;
+}
+@media (max-width: 999px) { .entry { justify-self: stretch; max-width: 620px; } }
+.entry-or {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 22px;
   align-items: center;
-}
-.entry .divider {
+  gap: 14px;
   font-family: var(--mono);
   font-size: 0.6875rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
 }
+.entry-or::before,
+.entry-or::after {
+  content: "";
+  height: 1px;
+  background: var(--rule);
+}
+
 .entry-card {
-  background: var(--ink-raised);
+  background: rgba(11, 9, 8, .55);
   border: 1px solid var(--rule);
   border-radius: 5px;
-  padding: 20px;
+  padding: clamp(18px, 2vw, 24px);
+  backdrop-filter: blur(6px);
 }
 .entry-card h2 {
   font-size: 1.0625rem;
@@ -96,41 +132,65 @@
   margin-bottom: 4px;
 }
 .entry-card p { font-size: 0.875rem; color: var(--muted); margin-bottom: 16px; }
-.entry-card button { width: 100%; }
+.entry-card > button { width: 100%; }
+
 .join-row { display: flex; gap: 8px; }
-.join-row input { flex: 1; }
-.join-row button { flex: 0 0 auto; padding-inline: 18px; }
+/* basis 0 rather than auto: the input's own width:100% would otherwise
+   argue with the button over the row, and the loser was the input. */
+.join-row input { flex: 1 1 0; min-width: 0; }
+.join-row button { flex: 0 0 auto; width: auto; padding-inline: 20px; }
 
-#homeNotice { margin-top: 16px; }
+#homeNotice { margin: 0; }
 
-@media (max-width: 720px) {
-  .entry { grid-template-columns: 1fr; gap: 14px; }
-  .entry .divider { text-align: center; }
-}
+/* ---------------------------------------------------------------- blocks */
 
-/* ---------------------------------------------------------------- sources */
+.block { padding-block: clamp(56px, 8vh, 96px); }
+.block + .block { padding-top: 0; }
 
-section.block { padding-top: 72px; }
-section.block > .eyebrow { display: block; margin-bottom: 10px; }
-section.block > h2 {
-  font-size: clamp(1.5rem, 3.4vw, 2.125rem);
+.block-head { margin-bottom: clamp(22px, 3vh, 34px); }
+.block-head > .eyebrow { display: block; margin-bottom: 10px; }
+.block-head > h2 {
+  font-size: clamp(1.5rem, 3vw, 2.375rem);
   font-variation-settings: "wdth" 86, "opsz" 40;
-  margin-bottom: 22px;
+  max-width: 20ch;
 }
 
-.sources { display: grid; gap: 2px; }
-.source {
+/* ---------------------------------------------------------------- sources
+   Cards rather than full-width rows: a row of prose stretched across a wide
+   monitor is unreadable, and auto-fit turns spare width into more columns
+   instead of longer lines. */
+
+.sources {
   display: grid;
-  grid-template-columns: 190px 1fr auto;
-  gap: 20px;
-  align-items: baseline;
-  padding: 17px 0;
-  border-bottom: 1px solid var(--rule);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 2px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  overflow: hidden;
 }
-.source:last-child { border-bottom: 0; }
-.source h3 { font-size: 1rem; font-variation-settings: "wdth" 95; }
-.source p { font-size: 0.9375rem; color: var(--dim); }
+.source {
+  background: var(--ink);
+  padding: clamp(18px, 2vw, 26px);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.source h3 {
+  font-size: 1.0625rem;
+  font-variation-settings: "wdth" 95;
+  order: 2;
+}
+.source p {
+  font-size: 0.9375rem;
+  color: var(--dim);
+  order: 3;
+  max-width: 46ch;
+}
 .source .tag {
+  order: 1;
+  align-self: flex-start;
   font-family: var(--mono);
   font-size: 0.625rem;
   letter-spacing: 0.1em;
@@ -140,23 +200,27 @@ section.block > h2 {
   white-space: nowrap;
   border: 1px solid var(--rule);
   color: var(--muted);
+  margin-bottom: 5px;
 }
 .source .tag.live { color: var(--lamp); border-color: rgba(232, 163, 61, .35); }
 
-@media (max-width: 720px) {
-  .source { grid-template-columns: 1fr auto; gap: 4px 14px; }
-  .source p { grid-column: 1 / -1; }
-}
-
 /* ------------------------------------------------------------------ steps */
 
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; }
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: clamp(24px, 3vw, 44px);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.step { min-width: 0; }
 .step h3 {
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-variation-settings: "wdth" 95;
   margin-bottom: 6px;
 }
-.step p { font-size: 0.9375rem; color: var(--dim); }
+.step p { font-size: 0.9375rem; color: var(--dim); max-width: 48ch; }
 .step .n {
   font-family: var(--mono);
   font-size: 0.6875rem;
@@ -164,15 +228,19 @@ section.block > h2 {
   letter-spacing: 0.1em;
   display: block;
   margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
 }
 
 /* ----------------------------------------------------------------- footer */
 
 .foot {
-  margin-top: 76px;
-  padding-top: 26px;
   border-top: 1px solid var(--rule);
+  padding-block: 28px clamp(40px, 6vh, 72px);
+  background: var(--ink-raised);
+}
+.foot p {
   font-size: 0.875rem;
   color: var(--muted);
-  max-width: 62ch;
+  max-width: 74ch;
 }
