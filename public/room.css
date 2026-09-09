@@ -847,6 +847,11 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
      rather than none, so the lights-down transition still animates. */
   .room-head { max-height: 148px; }
 
+  /* Chat first on a phone. Stacked in one column, the sidebar's desktop order
+     buries it under the source picker, the roster and the mixer — so the one
+     panel people use continuously sits furthest from the controls. */
+  .chat-panel { order: -1; }
+
   .chat-log { max-height: 30vh; }
 
   .br-chrome { flex-wrap: wrap; }
