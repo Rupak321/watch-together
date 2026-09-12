@@ -957,7 +957,16 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
     max-height: none;
     overflow-y: visible;
   }
-  .room[data-mode="house"] .side { display: none; }
+  /* Lights down still dims the page, but on a phone the sidebar stays under
+     the picture instead of vanishing. A film cannot fill a phone held upright,
+     so everything below it was an empty black page — with chat, the one
+     thing people use while watching, nowhere to be found. */
+  .room[data-mode="house"] .side {
+    opacity: 1;
+    pointer-events: auto;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  .room[data-mode="house"] .panel { background: var(--ink-raised); }
   /* The head wraps to two lines here, and a 60px ceiling cut the second one
      off — taking Leave and the connection state with it. Still a number
      rather than none, so the lights-down transition still animates. */
