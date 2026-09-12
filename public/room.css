@@ -32,7 +32,15 @@ body { overflow-x: hidden; }
      row — and Play with it — off the bottom of the screen. */
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 18px;
-  padding: var(--gutter);
+  /* Never less than the device's safe area. With viewport-fit=cover the page
+     runs under the notch and the home indicator, so the gutter alone would
+     put Leave behind the cutout in landscape — and in the house, where the
+     gutter is zero, put the controls under the home bar. */
+  padding:
+    max(var(--gutter), env(safe-area-inset-top, 0px))
+    max(var(--gutter), env(safe-area-inset-right, 0px))
+    max(var(--gutter), env(safe-area-inset-bottom, 0px))
+    max(var(--gutter), env(safe-area-inset-left, 0px));
   background: var(--foyer);
   transition:
     background 900ms var(--ease),
@@ -661,6 +669,9 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
   flex-direction: column;
   background: var(--ink);
   animation: br-in 180ms var(--ease);
+  /* Full-screen by design, so it owns the notch and home-bar clearance too. */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 
 @keyframes br-in { from { opacity: 0; transform: scale(.985); } }

@@ -31,8 +31,10 @@
      monitor gets breathing room at the edges without the content being
      parked in a column down the middle. Safe-area insets are added rather
      than replaced, so a notched phone in landscape keeps text clear of the
-     cutout. */
-  --gutter: calc(clamp(18px, 4vw, 72px) + env(safe-area-inset-left, 0px));
+     cutout. The larger of the two side insets, because the same gutter pads
+     both edges and the notch lands on whichever side the phone was turned
+     towards. */
+  --gutter: calc(clamp(18px, 4vw, 72px) + max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)));
 
   color-scheme: dark;
 }
