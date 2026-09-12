@@ -1042,8 +1042,17 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
   .tile.has-video { width: clamp(72px, min(20vw, 26vh), 132px); }
 
   .br-chrome { flex-wrap: wrap; }
-  .br-addr { order: -1; flex: 1 0 100%; }
+  /* The address shares the nav row wherever there is room, and keeps enough
+     width to type into — when space runs short the buttons wrap, not it. */
+  .br-addr { min-width: 160px; }
   .br-found { max-height: 40vh; }
+}
+
+/* Only a narrow screen gives the address a row to itself. A landscape phone
+   did too, which spent a whole row of a 390px-tall screen on it and left the
+   page underneath 238px. */
+@media (max-width: 600px) {
+  .br-addr { order: -1; flex: 1 0 100%; }
 }
 
 /* The presenting badge turns amber-on-warning when the crop did not take and
