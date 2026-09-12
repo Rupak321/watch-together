@@ -1,202 +1,376 @@
 # Watch Together
 
-Friends in different places watch the same thing at the same moment and talk while they do.
+**Watch the same film at the same moment with friends in other places — and talk the whole way through.**
 
-Plan: [FINAL-PLAN.md](FINAL-PLAN.md) · Risks: [RISKS.md](RISKS.md) · UI direction: [Houselights](https://claude.ai/code/artifact/5e97a447-f809-4089-b978-081a2a2603ee)
+Open a room, pick something to watch, share a six-character code. Every playhead in the room is held to one
+clock within about a tenth of a second, with voice, camera, chat and reactions on the same screen. It runs
+free on Cloudflare's edge, needs no account, and works on desktop and on phones.
+
+![A film playing in a room, lights down, with the controls, reactions and floating chat over the picture](docs/screenshots/room-playing.jpg)
 
 ---
 
-## Run it
+## Contents
+
+- [Screenshots](#screenshots)
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Getting a film into the room](#getting-a-film-into-the-room)
+- [On phones](#on-phones)
+- [Deploying](#deploying)
+- [Voice, camera and TURN](#voice-camera-and-turn)
+- [How the sync works](#how-the-sync-works)
+- [Project layout](#project-layout)
+- [API and room protocol](#api-and-room-protocol)
+- [Things that will bite whoever touches this next](#things-that-will-bite-whoever-touches-this-next)
+- [Known limits](#known-limits)
+- [Repository rules](#repository-rules)
+
+---
+
+## Screenshots
+
+### Desktop
+
+| Home | Room — lights up |
+|---|---|
+| ![Home page: headline, start a room, join with a code](docs/screenshots/home.jpg) | ![The room before playback: film loaded, sidebar with source picker, roster, audio and chat](docs/screenshots/room-lobby.jpg) |
+| Start a room or join one with a code. Nothing to install, no sign-up. | The foyer. Pick a source, see who is in the room and on voice, chat while people arrive. |
+
+| Room — lights down | Embedded browser |
+|---|---|
+| ![Playback with the lights down: full-bleed picture, controls, reactions and floating chat](docs/screenshots/room-playing.jpg) | ![The in-room browser with its address bar, call controls and quick links](docs/screenshots/browser.jpg) |
+| The house. The film takes the screen; chat rises over the picture and fades, faces sit in a rail. | A browser inside the room, shown to everyone as a screen share. A video file it finds goes to the room with **Play in room** and plays in sync. |
+
+### Phone
+
+| Upright, playing | More sheet | On its side |
+|---|---|---|
+| ![Phone held upright: picture at the top, one-row controls, chat directly underneath](docs/screenshots/phone-playing.jpg) | ![The More sheet open: voice, camera, lights, reactions and volume sliders](docs/screenshots/phone-more.jpg) | ![Phone on its side: picture filling the height with one-row controls](docs/screenshots/phone-landscape.jpg) |
+| Picture on top, one-row controls, chat right underneath while the film plays. | Voice, camera, reactions, volume and Lights fold into a sheet behind **More**. | The picture fills the height; the page scrolls to chat and the rest. |
+
+*Captured from two real clients in one room. The film is* Big Buck Bunny *© Blender Foundation,
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), streamed from the Internet Archive.*
+
+---
+
+## What it does
+
+**Rooms** — `/r/CODE`. Codes are six characters from an alphabet with no `0 1 I L O`, so they survive
+being read aloud. The first person in is the host and can lock play, pause and seek to themselves; if the
+host leaves, the room passes to whoever is still there.
+
+**Two temperatures** — the room has a *foyer* (lights up: plum and brass, the sidebar, the title row) and a
+*house* (lights down: warm black, the film edge to edge). Starting playback dims the lights over 900ms;
+pausing brings them back up faster, because a pause is an interruption and people need to see each other.
+
+**Sources**
+
+| Source | How it syncs |
+|---|---|
+| **YouTube** link | Player API, discrete rates — wider deadband, micro-seeks |
+| **Direct video URL** (`.mp4`) | `<video>`, fine playback-rate correction |
+| **Internet Archive** search | Picks a browser-playable file; takes part 1 when a film is split into reels |
+| **Screen share** | Live stream — already the same moment for everyone, so sync stands down |
+| **Embedded browser** | Shown to the room as a screen share; a video file it finds can be sent as a direct link instead |
+| `test` | A synthetic clock with no media, for measuring the sync engine itself |
+
+**Playback** — seek bar with hover preview and arrow-key nudges, subtitles found automatically beside the
+film (`movie.vtt` or `movie.srt` next to `movie.mp4`), full screen, separate film and voice volume, and a
+per-device ±300ms nudge for matching a second screen in the same room.
+
+**Talking** — peer-to-peer voice and optional camera over the room's own WebSocket, push-to-talk on **T**,
+mute that shows in the roster, speaking detection that lights up the speaker's tile, and ducking that dips
+the film to 25% while someone talks. Chat keeps the last 50 messages for late joiners; reactions float over
+the picture and vanish.
+
+**Protective defaults** — a camera during playback is capped at 180p/150 kbps and pauses incoming video
+entirely when the film's buffer runs low, because WebRTC wins any bandwidth fight against a video fetch and
+an uncapped camera would stall the film.
+
+---
+
+## Quick start
+
+Needs Node 20+.
 
 ```bash
-npm install && npm run dev
+npm install
+npm run dev
 ```
 
-Open `http://localhost:8787`, press **Start a room**, share the `/r/CODE` link.
+Open `http://localhost:8787`, press **Start a room**, and open the `/r/CODE` link in a second tab or on
+another device. Type `test` into the **Link** box for the sync clock, or search the **Archive** tab for a
+public-domain film.
 
 ---
 
-## What works now
+## Getting a film into the room
 
-**Home page** — start a room or join with a code. Codes come from an alphabet with no
-`0 1 I L O`, so they survive being read aloud.
+**YouTube, or a direct link.** Paste it into **Link** and press **Set**. A direct link has to *be* the video
+file — a URL ending in `.mp4`. A web page that plays a video inside it is not a video file and will not load
+there; use screen share for those.
 
-**The room** at `/r/CODE` — two temperatures with a 900ms transition between them:
+**A film on your own computer.** Serve the folder over a public HTTPS link — nothing is uploaded, and there
+is no storage limit:
 
-- **Foyer** (plum, lights up) — source picker, roster, chat, the Start button
-- **House** (warm ink, lights down) — full-bleed film, presence rail, ephemeral chat over
-  the picture, auto-hiding controls, floating reactions, sync dot with a ±300ms nudge
+```bash
+npm run share -- "C:\Users\you\Videos\movies"
+```
 
-**Sources** — YouTube, any direct video URL, Internet Archive search, plus a synthetic
-`test` clock. All behind one adapter interface, so `sync.js` never changes when one is added.
+It lists every `.mp4`, `.m4v`, `.webm`, `.mov` and `.ogv` in the folder with a link to paste into **Link**,
+serves byte ranges so seeking works, and serves any `.vtt` or `.srt` beside a film so its subtitles load too.
+Keep the window open for the whole film. It needs
+[`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+(`winget install --id Cloudflare.cloudflared`), and every viewer streams from your upload — a 1080p film
+needs roughly 5 Mbps of upstream per viewer.
 
-**Embedded browser** — a browser inside the room, personal to whoever opens it. Find a
-film, press **Play in room**, and it starts for everyone in sync. Because a refused iframe
-fails silently, every address is checked server-side first (`/api/embed-check`) and a site
-that will not be framed says so — while still handing over its title, its video files and
-its links, so it stays browsable as text and still yields something to play.
+**Converting an MKV.** Browsers do not play Matroska, and no browser decodes AC3, E-AC3 or DTS audio. Check
+the video codec first, because it decides whether this takes a minute or an hour:
 
-**Sync** — clock estimation, drift correction by playback rate, ready-check gate, live
-roster with per-person lag, and an interruption band instead of a modal.
+```bash
+ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of csv=p=0 "film.mkv"
+```
 
-**Chat and reactions** — 50 messages kept for late joiners, join/leave notices, five fixed
-reactions that float over the film and vanish.
+If it says `h264`, copy the video and convert only the audio — minutes:
 
-**Voice and camera** — P2P mesh over the room's existing WebSocket, so there is no second
-service. Mic toggle, push-to-talk on **T**, mute, speaking detection that lights the rail,
-and ducking that dips the film to 25% while someone talks. Camera is optional per person;
-its *quality* is not — 180p/150kbps during playback, relaxed to 360p when paused, and
-throttled further as the film's buffer drains.
+```bash
+ffmpeg -i "film.mkv" -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -b:a 192k -ac 2 -sn -movflags +faststart "movie.mp4"
+```
 
-### Verified end to end
+If it says `hevc`, the video has to be re-encoded — most of an hour:
 
-| | Result |
-|---|---|
-| Drift between two clients | **4 ms** (both ~45 ms behind server target, uniformly) |
-| Recovery from a 600 ms knock | ~70 ms/s, inside ±150 ms in 7 s, **never seeked** |
-| Recovery from a 2.4 s knock | hard seek fires, lands at +150 ms, nudges in |
-| Deadband hold | ±50 ms, no correction applied |
-| Real playback | Archive MP4, advanced 3.03 s in 3 s, drift −43 ms holding |
-| Archive search | 20 results, correct part-1 file selection |
+```bash
+ffmpeg -i "film.mkv" -map 0:v:0 -map 0:a:0 -c:v libx264 -crf 20 -preset fast -c:a aac -b:a 192k -ac 2 -movflags +faststart "movie.mp4"
+```
 
-### Verified for voice
+`-movflags +faststart` puts the index at the front of the file so playback starts without downloading the
+whole thing. Pull subtitles out separately and name them to match — they load on their own:
 
-Signalling, the UI state machine and the failure paths: `/api/ice` returns STUN and
-correctly reports `relay: false` with no credentials set; peer ids arrive; rail tiles are
-created and kept (not rebuilt) so a `<video>` survives roster updates; a blocked microphone
-produces an actionable message without half-flipping the button state.
+```bash
+ffmpeg -i "film.mkv" -map 0:s:0 "movie.vtt"
+```
 
-### Proven on two machines, different networks
+**Screen share.** From a computer: **Screen** → **Share my screen**, choose **Browser tab**, and tick
+**Also share tab audio** or everyone gets a silent film. Quality follows your upload speed.
 
-Voice connects on STUN alone — no relay needed. Chat persists. Screen sharing reaches
-viewers. Playback stayed in sync between two people.
-
-### Still unproven
-
-- **The camera path.** No webcam in the dev sandbox, so adding and removing a video track
-  mid-call has never actually run. Renegotiation glare during a live call is where WebRTC
-  gets nasty, and the transceiver flip under buffer pressure renegotiates at the worst
-  possible moment.
-- **Ducking.** The film dipping while someone talks has never been heard against real
-  remote audio.
-- **Anything above two people.** Mesh is three connections each at four people; nobody has
-  run that.
-- **Phones.** There is a breakpoint in the CSS, not a design.
-- **The embedded browser in a real browser.** The endpoint is verified against live sites
-  and the module is smoke-tested against a stub DOM; nobody has yet clicked through it on
-  a running page.
+Bring content you have the right to watch — your own files, YouTube, or the public domain. Rooms are private
+and unlisted, and the code is the only way in.
 
 ---
 
-## Turning on TURN
+## On phones
 
-Mesh voice works right now with public STUN, which connects most people. Roughly one in six
-sits behind a symmetric NAT and needs a relay — and a relay always costs someone money, so
-it needs credentials.
+The room is built for phones as well as desktops, and was checked from 360px wide to 1440px, upright and on
+its side.
 
-Create a Realtime TURN key in the Cloudflare dashboard, then:
+- **Short screens get a scrolling single column.** The desktop layout fixes its height to the screen, which
+  a phone on its side cannot share between a header, a picture and a title row — so below 860px wide *or*
+  560px tall, the page scrolls and the picture is sized against the screen alone.
+- **Controls stay on one row.** Below a ~900px stage the bar keeps Play, the clock, **More** and Full
+  screen; everything else folds into a sheet.
+- **Tap the picture** to show or hide the controls, as in any phone video player.
+- **Chat stays under the picture** while the film plays.
+- **Full screen on iPhone fills the window.** iPhones only allow fullscreen on a bare `<video>`, which would
+  leave the controls, chat and faces behind, so the stage covers the window instead. Everywhere else it is
+  real fullscreen, and Android turns an upright phone landscape.
+- **Screen sharing is desktop only.** No phone browser exposes `getDisplayMedia`; phones can still watch a
+  screen shared from a computer, and the button says so.
+- **Notch and home indicator** are respected (`viewport-fit=cover` with safe-area insets), text fields are
+  16px on touch screens so iOS does not zoom into them, and hover styles only apply where there is a pointer
+  that can hover.
+
+---
+
+## Deploying
+
+```bash
+npx wrangler login
+npx wrangler deploy
+```
+
+The first deploy asks for a `workers.dev` subdomain. The site then lives at
+`https://watch-together.<subdomain>.workers.dev` — the worker name comes first; the bare
+`<subdomain>.workers.dev` serves nothing. A new subdomain can take a few minutes to get DNS and a
+certificate.
+
+Everything runs on the free plan: one Durable Object per room (SQLite-backed, which is the only kind the free
+plan has), static assets, and a small Worker for the API.
+
+---
+
+## Voice, camera and TURN
+
+Voice is a full peer-to-peer mesh over the room's WebSocket — no second service, no media server. Public STUN
+connects most people directly; roughly one in six sits behind a symmetric NAT and needs a relay. To turn one
+on, create a Realtime TURN key in the Cloudflare dashboard and set:
 
 ```bash
 npx wrangler secret put TURN_TOKEN_ID
 npx wrangler secret put TURN_API_TOKEN
 ```
 
-`/api/ice` picks them up with no client change. Cloudflare's free tier covers 1,000 GB a
-month. If the credentials are absent or the call fails, the endpoint falls back to STUN
-rather than taking voice down for everyone who doesn't need a relay.
+`/api/ice` picks them up with no client change, and falls back to STUN if they are missing or the call fails,
+so a relay outage never takes voice down for people who do not need one. Cloudflare's free tier covers
+1,000 GB of relayed traffic a month.
 
-**Above four people, mesh stops scaling** — each extra person costs everyone another
-upstream. That is where the SFU has to take over, and it needs the same account.
+Mesh stops scaling above about four people — every extra person costs everyone another upstream. Beyond that
+an SFU is needed, on the same account.
 
 ---
 
-## Layout
+## How the sync works
+
+Every client streams the film **independently**. The room broadcasts only a clock:
 
 ```
-src/
-  index.js         Worker — routing, room codes, /r/ pages, Archive proxy, embed check
-  room.js          Durable Object — clock, ready-check, roster, chat
-public/
-  index.html       Home
-  home.css home.js
-  room.html        The room
-  room.css room.js
-  style.css        Tokens and base — the two grounds
-  sync.js          SyncClock + DriftCorrector
-  adapters.js      VideoSource implementations
-  browser.js       The embedded browser
-  tick-worker.js   Worker-thread timer so background tabs keep correcting
+      video host (CDN, YouTube, your machine)
+       /          |          \
+   Rupak        Sita        Aarav        each plays its own copy
+       \          |          /
+     Durable Object — one per room       { playing, anchorTime, anchorClock }
 ```
 
-### How the sync works
-
-The room never broadcasts a position. It broadcasts an **anchor** (movie time) plus the
-**wall clock** that anchor was true at, so any client computes its own target:
+The room never sends a bare position. It sends an **anchor** — a movie time — and the wall clock that anchor
+was true at, so any client computes its own target, including one that joined between messages:
 
 ```
 target = anchorTime + (syncedNow() - anchorClock) / 1000
 ```
 
-A client joining mid-gap gets the right answer with no polling. `syncedNow()` comes from
-NTP-style offset estimation that keeps the **lowest-RTT** sample of the last 8 rather than
-averaging — a sample delayed by a congested hop carries that delay into its estimate, so
-averaging drags the result toward whatever was slowest.
+`syncedNow()` comes from NTP-style offset estimation against the room, keeping the **lowest round-trip**
+sample of the last eight rather than the average — a sample delayed by a congested hop carries that delay
+straight into its estimate.
 
-Correction is by playback rate, never by seeking, until drift passes one second.
+**Correction is by playback rate, not seeking.**
+
+```
+|drift| < 50ms       hold
+|drift| < 1s         playbackRate = 1 ± up to 7%    (past ~10% the pitch shift is audible)
+|drift| ≥ 1s         seek to target + 150ms
+```
+
+**Nobody holds the room hostage.** Play and seek run a ready-check: each client seeks, buffers, and reports
+ready; the room waits for everyone or 8 seconds, then starts all clients on the same future timestamp. Anyone
+still loading is pulled in by drift correction.
+
+### Measured
+
+| | Result |
+|---|---|
+| Drift between two clients | **4 ms** |
+| Recovery from a 600ms knock | ~70 ms/s, back inside ±150ms in 7s, without seeking |
+| Recovery from a 2.4s knock | seeks, lands at +150ms, nudges in |
+| Two machines, different networks | voice on STUN alone, screen share reaches viewers, playback in sync |
+
+---
+
+## Project layout
+
+```
+src/
+  index.js          Worker — routing, room codes, /r/ pages, Archive proxy, ICE, embed check
+  room.js           Durable Object — clock, ready-check, host and permissions, roster, chat, signalling
+public/
+  index.html        Home page             home.css  home.js
+  room.html         The room              room.css  room.js
+  style.css         Tokens and base — the two grounds, touch and hover rules
+  sync.js           SyncClock and DriftCorrector
+  adapters.js       Video sources behind one interface
+  voice.js          Peer-to-peer voice, camera and screen share
+  browser.js        The embedded browser
+  tick-worker.js    Worker-thread timer, so a background tab keeps correcting
+scripts/
+  share-local.mjs   Serve a folder of films over a Cloudflare quick tunnel, with Range support
+docs/screenshots/   The images in this README
+.githooks/          Single-author and no-attribution commit checks
+wrangler.jsonc      Worker, assets and Durable Object configuration
+```
 
 ### Adding a source
 
-Implement the interface in `adapters.js`, register it in `createSource`. Nothing in
-`sync.js` should need to change:
+Implement the interface in `adapters.js` and register it in `createSource`. Nothing in `sync.js` should need to
+change:
 
 ```
 play() pause() seek(t) getCurrentTime() getBufferedAhead()
-setPlaybackRate(r) isReady() destroy()
-supportsFineRate: boolean
+setPlaybackRate(r) setVolume(v) isReady() destroy()
+supportsFineRate: boolean      isLive?: boolean
 ```
 
-`supportsFineRate: false` (YouTube — discrete rates only, and the call is advisory) widens
-the corrector's deadband to ±400 ms and switches it to micro-seeks.
+`supportsFineRate: false` widens the deadband to ±400ms and switches to micro-seeks. `isLive: true` makes the
+sync engine stand down entirely.
+
+---
+
+## API and room protocol
+
+**HTTP**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/new-room` | A fresh room code |
+| `GET /api/ice` | ICE servers — STUN, plus TURN when credentials are set |
+| `GET /api/archive/search?q=` | Internet Archive film search, proxied |
+| `GET /api/archive/pick?id=` | A browser-playable file from an Archive item |
+| `GET /api/embed-check?url=` | Whether a page can be framed, plus its title, video files and links |
+| `GET /ws?room=CODE` | WebSocket into the room's Durable Object |
+| `GET /r/CODE` | The room page |
+
+**WebSocket messages** handled by the room: `hello` `ping` `status` · `source` `play` `pause` `seek` `ready`
+`settings` · `chat` `react` · `presence` `signal` · `browse`. The room sends back `pong`, `you`, `state`,
+`prepare`, `playat`, `roster`, `history`, `chat`, `react`, `system`, `signal`, `browse` and `denied`.
 
 ---
 
 ## Things that will bite whoever touches this next
 
-- **`new_sqlite_classes`, not `new_classes`** in `wrangler.jsonc`. SQLite-backed Durable
-  Objects are the only kind on the free plan; the other spelling works locally and fails on
-  deploy.
-- **The ready-check timeout is a storage alarm**, not `setTimeout`. A hibernating Durable
-  Object has no live timers.
-- **`/r/CODE` requests `/room`, not `/room.html`.** The asset handler 301s `.html` to the
-  extensionless path, and the browser following that redirect wipes the room code out of
-  the address bar.
-- **`[hidden] { display: none !important }` is load-bearing** in `style.css`. Author rules
-  beat the UA stylesheet, so a plain `label { display: block }` silently defeats `hidden`.
-- **Archive items are often reels, not films.** Many hold no complete copy — only
-  `...-3of5.mp4`. `archivePick` takes the first part and reports the count so the UI can say
-  so; sorting by size alone lands on an arbitrary middle reel.
-- **A blocked iframe raises no error.** A frame refused by `X-Frame-Options` or CSP
-  `frame-ancestors` is a blank rectangle with no event, no status and no readable
-  location — the response never becomes a document this origin can see. That is the whole
-  reason `/api/embed-check` exists, and why the embedded browser's address bar tracks only
-  what was opened *through* it: a link followed inside a cross-origin frame cannot be
-  observed from outside it.
-
-- **`HTML_SCAN_BYTES` is 1.6 MB on purpose.** YouTube puts its `<title>` 700 KB into the
-  response. A cap tight enough to feel prudent is a cap that misses the name of the page.
-
-- **`object-fit` defaults to `contain` for `<video>`** (unlike `<img>`), so 4:3 prints
-  letterbox correctly with no extra CSS.
+- **`new_sqlite_classes`, not `new_classes`**, in `wrangler.jsonc`. SQLite-backed Durable Objects are the only
+  kind on the free plan; the other spelling works locally and fails on deploy.
+- **The ready-check timeout is a storage alarm**, not `setTimeout`. A hibernating Durable Object has no live
+  timers.
+- **`/r/CODE` requests `/room`, not `/room.html`.** The asset handler 301s `.html` to the extensionless path,
+  and following that redirect wipes the room code out of the address bar.
+- **`[hidden] { display: none !important }` is load-bearing.** Author rules beat the UA stylesheet, so a plain
+  `label { display: block }` silently defeats `hidden`.
+- **A fixed box obeys `align-self` and `justify-self` now.** The stage is centred in its grid cell, and in
+  window-filling full screen that shrank it to fit its absolutely positioned contents — 0×0. It stretches
+  explicitly there.
+- **The controls bar is measured, not assumed.** Faces, floating chat, the sync pill and subtitle cues clear
+  `--ctrl-h`, which a `ResizeObserver` keeps equal to the bar's visible height.
+- **iOS zooms into any field under 16px and stays zoomed.** Touch screens get 16px text in every field.
+- **iOS keeps `:hover` after a tap.** Hover rules live behind `@media (hover: hover)`.
+- **Archive items are often reels, not films.** Many hold only `...-3of5.mp4`; the picker takes part 1 and
+  reports the count rather than landing on an arbitrary middle reel.
+- **A blocked iframe raises no error.** A frame refused by `X-Frame-Options` or CSP is a blank rectangle with
+  no event and no readable location — which is why `/api/embed-check` exists, and why the embedded browser's
+  address bar tracks only what was opened through it.
+- **`HTML_SCAN_BYTES` is 1.6 MB on purpose.** YouTube puts its `<title>` 700 KB into the response.
+- **Room codes exclude `0 1 I L O`.** A code like `PLAY22` or `FULL22` is invalid and redirects home.
 
 ---
 
-## Next
+## Known limits
 
-- **Two machines with microphones** — proves the peer connection, the latency figure and
-  the ducking all at once. Everything else is guesswork until this happens.
-- **Screen share** adapter for anything the other sources can't reach.
-- **SFU** for rooms above four, on the same Cloudflare account as TURN.
-- **HLS** via hls.js. Note `.m3u8` needs CORS on the origin, unlike a plain MP4.
+- **Checked in phone emulation, not yet on a physical iPhone.** Emulation reports zero safe-area insets and
+  does not reproduce iOS focus-zoom or Safari's toolbars, so those need a real device.
+- **Taps over a YouTube player** do not reach the room, so on a phone they cannot bring up the controls. A
+  tap-catching layer would also block YouTube's own play prompt, which iOS can require.
+- **Mesh voice** is untested above two people and will not scale past about four without an SFU.
+- **HLS** (`.m3u8`) is not wired up yet; unlike a plain MP4 it needs CORS on the origin.
+- **No uploads.** Serving from your own machine with `npm run share` replaced them.
 
-Three decisions still open ([FINAL-PLAN.md](FINAL-PLAN.md) §9): mobile scope, room
-lifetime, and who is allowed to pause.
+Planning notes: [FINAL-PLAN.md](FINAL-PLAN.md) · [RISKS.md](RISKS.md) · [PLAN.md](PLAN.md)
+
+---
+
+## Repository rules
+
+Every commit in this repository is authored by **Rupak Pandey** alone, with no attribution trailers. That is
+enforced by the hooks in `.githooks/`; turn them on once in a fresh clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+See [CLAUDE.md](CLAUDE.md) for the full rules.
