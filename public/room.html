@@ -94,28 +94,36 @@
       <button id="playBtn" class="js-play">Play</button>
       <span class="clock"><span id="posLabel">0:00</span> / <span id="durLabel">0:00</span></span>
       <div class="grow"></div>
-      <button class="ghost js-mic" data-on="false">Join voice</button>
-      <button class="ghost js-cam" data-on="false">Camera</button>
-      <div class="react-strip" id="reactStrip">
-        <button data-emoji="😂" aria-label="React with laughing">😂</button>
-        <button data-emoji="😭" aria-label="React with crying">😭</button>
-        <button data-emoji="🔥" aria-label="React with fire">🔥</button>
-        <button data-emoji="😱" aria-label="React with shocked">😱</button>
-        <button data-emoji="❤️" aria-label="React with heart">❤️</button>
-      </div>
-      <div class="vol-wrap">
-        <button class="ghost" id="volBtn" aria-expanded="false">Volume</button>
-        <div class="vol-panel" id="volPanel" hidden>
-          <div class="mixer">
-            <label for="movieVol2">Film <span class="mono" data-volval="movie">100%</span></label>
-            <input type="range" id="movieVol2" data-vol="movie" min="0" max="100" step="5" value="100">
-            <label for="voiceVol2">Voices <span class="mono" data-volval="voice">100%</span></label>
-            <input type="range" id="voiceVol2" data-vol="voice" min="0" max="100" step="5" value="100">
+      <!-- On a wide stage these sit in the row as they always have. On a small
+           one they fold into a sheet behind More, because a dozen controls
+           wrapped over a phone's picture covered all of it. The wrapper is
+           display:contents while unfolded, so nothing moves in the DOM and
+           every handler that finds these by id or class keeps working. -->
+      <div class="ctrl-more" id="ctrlMore" data-open="false">
+        <button class="ghost js-mic" data-on="false">Join voice</button>
+        <button class="ghost js-cam" data-on="false">Camera</button>
+        <div class="react-strip" id="reactStrip">
+          <button data-emoji="😂" aria-label="React with laughing">😂</button>
+          <button data-emoji="😭" aria-label="React with crying">😭</button>
+          <button data-emoji="🔥" aria-label="React with fire">🔥</button>
+          <button data-emoji="😱" aria-label="React with shocked">😱</button>
+          <button data-emoji="❤️" aria-label="React with heart">❤️</button>
+        </div>
+        <div class="vol-wrap">
+          <button class="ghost" id="volBtn" aria-expanded="false">Volume</button>
+          <div class="vol-panel" id="volPanel" hidden>
+            <div class="mixer">
+              <label for="movieVol2">Film <span class="mono" data-volval="movie">100%</span></label>
+              <input type="range" id="movieVol2" data-vol="movie" min="0" max="100" step="5" value="100">
+              <label for="voiceVol2">Voices <span class="mono" data-volval="voice">100%</span></label>
+              <input type="range" id="voiceVol2" data-vol="voice" min="0" max="100" step="5" value="100">
+            </div>
           </div>
         </div>
+        <button class="ghost" id="ccBtn" hidden aria-pressed="false">Subtitles</button>
+        <button class="ghost" id="lightsBtn">Lights up</button>
       </div>
-      <button class="ghost" id="ccBtn" hidden aria-pressed="false">Subtitles</button>
-      <button class="ghost" id="lightsBtn">Lights up</button>
+      <button class="ghost" id="moreBtn" aria-expanded="false" aria-controls="ctrlMore">More</button>
       <button class="ghost" id="fullBtn">Full screen</button>
       </div>
     </div>

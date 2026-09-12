@@ -717,6 +717,9 @@ function setMode(mode) {
   if (room.dataset.mode === mode) return;
   room.dataset.mode = mode;
   el('lightsBtn').textContent = mode === 'house' ? 'Lights up' : 'Lights down';
+  // The sheet belongs to the house controls; it must not survive the lights
+  // coming up, where its bar is hidden and nothing could dismiss it.
+  setMoreOpen(false);
   if (mode === 'house') wakeControls();
 }
 
@@ -945,7 +948,11 @@ function wakeControls() {
   el('stageWrap').classList.add('awake');
   clearTimeout(controlsTimer);
   controlsTimer = setTimeout(() => {
-    if (el('room').dataset.mode === 'house') el('stageWrap').classList.remove('awake');
+    // Not while the More sheet is open: it lives inside the bar, and fading
+    // the bar would fade the sheet out from under someone mid-adjustment.
+    if (el('room').dataset.mode === 'house' && el('ctrlMore').dataset.open !== 'true') {
+      el('stageWrap').classList.remove('awake');
+    }
   }, CONTROLS_IDLE_MS);
 }
 
@@ -972,6 +979,9 @@ el('stageWrap').addEventListener(
   'pointerdown',
   (e) => {
     if (e.pointerType === 'mouse') return wakeControls();
+    // With the sheet open, a tap outside it is a dismissal, not a request to
+    // hide the whole bar — the document listener below closes the sheet.
+    if (el('ctrlMore').dataset.open === 'true') return wakeControls();
     const onControl = e.target.closest('button, input, select, a, .scrub, .sync-panel, .vol-panel');
     if (onControl || !el('stageWrap').classList.contains('awake')) return wakeControls();
     sleepControls();
@@ -990,6 +1000,35 @@ el('fullBtn').addEventListener('click', () => {
   const wrap = el('stageWrap');
   if (document.fullscreenElement) document.exitFullscreen();
   else wrap.requestFullscreen?.().catch(() => {});
+});
+
+// ------------------------------------------------------------- more sheet
+
+function setMoreOpen(open) {
+  const sheet = el('ctrlMore');
+  if (!sheet) return;
+  sheet.dataset.open = String(!!open);
+  el('moreBtn').setAttribute('aria-expanded', String(!!open));
+  if (open) wakeControls();
+}
+
+el('moreBtn').addEventListener('click', () => {
+  setMoreOpen(el('ctrlMore').dataset.open !== 'true');
+});
+
+// Dismiss on a tap anywhere outside the sheet. Judged by position rather than
+// by target, because the dimmed backdrop is the sheet's own ::before — a tap
+// on it reports the sheet as its target, and must still count as outside.
+document.addEventListener('pointerdown', (e) => {
+  const sheet = el('ctrlMore');
+  if (sheet.dataset.open !== 'true' || e.target.closest('#moreBtn')) return;
+  const r = sheet.getBoundingClientRect();
+  const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  if (!inside) setMoreOpen(false);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') setMoreOpen(false);
 });
 
 el('copyBtn').addEventListener('click', async (e) => {

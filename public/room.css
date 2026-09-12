@@ -463,6 +463,89 @@ body { overflow-x: hidden; }
 .react-strip { display: flex; gap: 2px; }
 .react-strip button { font-size: 17px; padding: 6px 8px; min-height: 34px; background: transparent; border: 0; }
 
+/* ------------------------------------------------------------ more sheet
+   Wide stage: the folded controls sit in the row exactly as they always did. */
+
+.ctrl-more { display: contents; }
+#moreBtn { display: none; }
+
+/* Small stage: a dozen controls wrapped into five or six rows and covered a
+   phone's picture entirely. The row keeps Play, the clock, More and Full
+   screen; the rest fold into a sheet that rises from the bottom edge. The
+   threshold is where the house stage — min(width, height × 16/9) — drops
+   under the ~900px one unfolded row needs. */
+@media (max-width: 900px), (max-height: 520px) {
+  #moreBtn { display: inline-block; }
+  .ctrl-more { display: none; }
+
+  .ctrl-row { flex-wrap: nowrap; gap: 6px; }
+  .controls { padding: 34px 10px 10px; }
+  .controls button { min-height: 40px; padding: 8px 12px; font-size: 0.875rem; }
+  .controls .clock {
+    font-size: 0.6875rem;
+    margin-left: 2px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .ctrl-more[data-open="true"] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding: 16px max(14px, env(safe-area-inset-right, 0px))
+             max(16px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    background: var(--ink-raised);
+    border-top: 1px solid var(--rule);
+    border-radius: 14px 14px 0 0;
+    /* The visible dimming. A shadow paints outside the box, so unlike an
+       overlay it never darkens the sheet itself. */
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55);
+    animation: sheet-in 200ms var(--ease);
+  }
+  /* The tap-catcher. Transparent, and there only so a dismissing tap cannot
+     land on Play or the seek bar underneath. room.js tells it apart from a tap
+     on the sheet by position, since both report the sheet as their target. */
+  .ctrl-more[data-open="true"]::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .ctrl-more > button { width: 100%; min-height: 44px; }
+  /* No subtitles on this film: let Lights up take the whole row rather than
+     sit beside an empty cell. */
+  .ctrl-more #ccBtn[hidden] + #lightsBtn { grid-column: 1 / -1; }
+
+  .ctrl-more .react-strip { grid-column: 1 / -1; order: 3; justify-content: space-between; }
+  .ctrl-more .react-strip button { flex: 1; font-size: 22px; min-height: 44px; }
+
+  /* Volume shows as sliders straight away; a button that opens a popover
+     inside a sheet is one tap too many. */
+  .ctrl-more .vol-wrap { grid-column: 1 / -1; order: 4; }
+  .ctrl-more #volBtn { display: none; }
+  .ctrl-more .vol-panel,
+  .ctrl-more .vol-panel[hidden] {
+    display: block !important;
+    position: static;
+    width: auto;
+    padding: 6px 2px 0;
+    background: none;
+    border: 0;
+  }
+}
+
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+
 /* Lift the rail and chat clear of the controls rather than hiding them.
    Hiding meant faces vanished the moment anyone moved the mouse — which is
    exactly when someone is looking for them. */
