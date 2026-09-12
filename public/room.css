@@ -854,13 +854,20 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 
 /* ----------------------------------------------------------------- mobile */
 
-@media (max-width: 860px) {
+/* Narrow screens, and short ones. The two-column room locks itself to the
+   viewport height and divides that between the head, the stage and the
+   title row — right on a monitor, but a phone on its side has ~360px to
+   share, so the stage came out 270px wide and Play was clipped off the end
+   of its row. Short screens get the scrolling single column instead. */
+@media (max-width: 860px), (max-height: 560px) {
   /* One column: rows size to their content and the page scrolls as a whole,
      so neither the stage nor the sidebar needs a track of its own. */
   .room, .room[data-mode="house"] { grid-template-columns: 1fr; }
   /* One column scrolls as a page, so the height goes back to being a floor
-     rather than a ceiling. */
-  .room { grid-template-rows: none; height: auto; min-height: 100dvh; }
+     rather than a ceiling — and the stage no longer has to fit beside the
+     head and the title row, only inside the screen. The desktop allowance
+     for that chrome is what gave a landscape phone a 324px picture. */
+  .room { grid-template-rows: none; height: auto; min-height: 100dvh; --chrome: 24px; }
   .side {
     grid-column: 1;
     grid-row: auto;
@@ -872,6 +879,13 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
      off — taking Leave and the connection state with it. Still a number
      rather than none, so the lights-down transition still animates. */
   .room-head { max-height: 148px; }
+
+  /* The title row sizes to its content here. Its desktop ceiling clipped the
+     buttons once they wrapped, and they run full width so a thumb lands on
+     them without aiming. Still a number, so the lights-down fold animates. */
+  .under { max-height: 400px; }
+  .under .actions { flex: 1 1 100%; }
+  .under .actions button { flex: 1 1 auto; padding-inline: 12px; }
 
   /* Chat first on a phone. Stacked in one column, the sidebar's desktop order
      buries it under the source picker, the roster and the mixer — so the one
