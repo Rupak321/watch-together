@@ -588,11 +588,18 @@ html.stage-full body { overflow: hidden; }
 
 @keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
 
-/* Lift the rail and chat clear of the controls rather than hiding them.
-   Hiding meant faces vanished the moment anyone moved the mouse — which is
-   exactly when someone is looking for them. */
-.stage-wrap.awake .rail { bottom: 68px; }
-.stage-wrap.awake .floatchat { bottom: 106px; }
+/* Lift the rail, the chat and the sync pill clear of the controls rather than
+   hiding them. Hiding meant faces vanished the moment anyone moved the mouse —
+   which is exactly when someone is looking for them.
+
+   Cleared by the bar's measured height (--ctrl-h, set by room.js), not a
+   fixed number. The old 68px fitted one exact bar: when the bar wrapped,
+   camera tiles landed on Join voice, and the sync pill never moved at all,
+   so it sat underneath Full screen. The fallback is the desktop bar's
+   height, for the moment before the first measurement arrives. */
+.stage-wrap.awake .rail { bottom: calc(var(--ctrl-h, 76px) + 10px); }
+.stage-wrap.awake .floatchat { bottom: calc(var(--ctrl-h, 76px) + 48px); }
+.stage-wrap.awake .sync { bottom: calc(var(--ctrl-h, 76px) + 10px); }
 
 /* ------------------------------------------------------------- foyer under */
 
@@ -689,7 +696,7 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 
 /* Cues sit above the controls rather than behind them. */
 .stage video::cue { font-size: 1.05em; line-height: 1.35; background: rgba(0, 0, 0, .72); }
-.stage-wrap.awake .stage video::-webkit-media-text-track-container { bottom: 60px; }
+.stage-wrap.awake .stage video::-webkit-media-text-track-container { bottom: var(--ctrl-h, 76px); }
 
 /* volume popover — the side panel is gone once the lights are down, which is
    exactly when someone reaches for the volume */

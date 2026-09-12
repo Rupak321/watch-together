@@ -946,6 +946,20 @@ el('reactStrip').addEventListener('click', (e) => {
 
 // ---------------------------------------------------------------- controls
 
+// The bar's height is not a constant — one row on a phone, wrapped on a
+// narrow desktop window, taller with the enlarged touch knob — and the faces,
+// the floating chat and the sync pill all have to clear it. A fixed 68px
+// allowance was wrong in both directions: camera tiles landed on Join voice,
+// and the sync pill sat under Full screen. Measure it instead and hand the
+// number to CSS. The top padding is the transparent fade above the bar, so it
+// is left out of what the overlays need to clear.
+const controlsSizer = new ResizeObserver(() => {
+  const c = el('controls');
+  const fade = parseFloat(getComputedStyle(c).paddingTop) || 0;
+  el('stageWrap').style.setProperty('--ctrl-h', `${Math.round(c.offsetHeight - fade)}px`);
+});
+controlsSizer.observe(el('controls'), { box: 'border-box' });
+
 function wakeControls() {
   el('stageWrap').classList.add('awake');
   clearTimeout(controlsTimer);
