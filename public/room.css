@@ -1035,6 +1035,12 @@ button.js-cam[data-on="true"] { border-color: var(--lamp); color: var(--lamp); }
 
   .chat-log { max-height: 30vh; }
 
+  /* Camera tiles sized to the picture they sit on. The desktop floor of 104px
+     is a quarter of a phone's 211px picture, and a large bite out of the strip
+     left above the controls. Here a tile scales with the smaller of the
+     screen's width and height, so it stays modest held either way. */
+  .tile.has-video { width: clamp(72px, min(20vw, 26vh), 132px); }
+
   .br-chrome { flex-wrap: wrap; }
   .br-addr { order: -1; flex: 1 0 100%; }
   .br-found { max-height: 40vh; }
