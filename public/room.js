@@ -1039,11 +1039,30 @@ document.querySelectorAll('.js-screen').forEach((b) =>
   })
 );
 
+/**
+ * Phones cannot share their screen at all. getDisplayMedia exists only in
+ * desktop browsers — every browser on iOS is WebKit and exposes none, and
+ * Chrome on Android leaves it out too. The button used to sit there looking
+ * available and fail with a generic error after the tap.
+ */
+const canShareScreen = () => !!navigator.mediaDevices?.getDisplayMedia;
+
 function renderScreenButton() {
   const on = !!voice?.screenStream;
+  const can = canShareScreen();
   for (const b of document.querySelectorAll('.js-screen')) {
     b.dataset.on = String(on);
-    b.textContent = on ? 'Stop sharing' : 'Share my screen';
+    b.disabled = !can;
+    b.textContent = !can ? 'Not available on this device' : on ? 'Stop sharing' : 'Share my screen';
+  }
+}
+
+if (!canShareScreen()) {
+  const hint = el('paneScreen').querySelector('.src-hint');
+  if (hint) {
+    hint.textContent =
+      'Phones and tablets cannot share their screen — no browser on them allows it. ' +
+      'You can still watch a screen someone shares from a computer.';
   }
 }
 
