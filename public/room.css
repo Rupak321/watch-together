@@ -142,6 +142,46 @@ body { overflow-x: hidden; }
 .stage-wrap { filter: brightness(.66) saturate(.8); transition: filter 900ms var(--ease); }
 .room[data-mode="house"] .stage-wrap { filter: none; }
 
+/* ---------------------------------------------------- window-filling stage
+   The iPhone's stand-in for full screen, which it grants only to a bare
+   <video> — alone, without the controls, chat or faces. Instead the stage
+   covers the window with everything that lives on it, and the page
+   underneath stops scrolling. */
+
+html.stage-full,
+html.stage-full body { overflow: hidden; }
+
+.room[data-full="true"] .stage-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  /* Stretch, explicitly. The stage is centred in its grid cell with
+     align-self and justify-self, and current engines apply those to a
+     fixed box too: instead of filling the inset it shrinks to fit its
+     content and centres. Everything inside the stage is absolutely
+     positioned, so that fit is zero — the first build of this measured the
+     stage at 0×0 in the middle of the window, with no picture at all. */
+  place-self: stretch;
+  width: auto;
+  height: auto;
+  max-width: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  filter: none;
+  background: #000;
+}
+
+/* The picture letterboxes inside the window by itself. What sits on top of it
+   has to stay clear of the notch and the home indicator, which a box filling
+   the window now runs underneath. */
+.room[data-full="true"] .controls {
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+.room[data-full="true"] .rail { left: max(14px, env(safe-area-inset-left, 0px)); }
+.room[data-full="true"] .sync { right: max(14px, env(safe-area-inset-right, 0px)); }
+
 .stage-empty {
   position: absolute;
   inset: 0;

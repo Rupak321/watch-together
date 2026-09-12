@@ -720,6 +720,8 @@ function setMode(mode) {
   // The sheet belongs to the house controls; it must not survive the lights
   // coming up, where its bar is hidden and nothing could dismiss it.
   setMoreOpen(false);
+  // Same for a window-filling stage: its only exit is in that bar.
+  if (mode !== 'house') setPseudoFull(false);
   if (mode === 'house') wakeControls();
 }
 
@@ -996,11 +998,53 @@ el('lightsBtn').addEventListener('click', () => {
   setMode(el('room').dataset.mode === 'house' ? 'foyer' : 'house');
 });
 
-el('fullBtn').addEventListener('click', () => {
+// ------------------------------------------------------------ full screen
+
+/**
+ * Real fullscreen where the platform offers it for an element. An iPhone does
+ * not: only a bare <video> may go fullscreen there, and it goes alone, leaving
+ * the controls, the chat and everyone's faces behind — so requestFullscreen
+ * was undefined, the optional call quietly did nothing, and the button looked
+ * broken. There the stage fills the window instead.
+ */
+const nativeFullElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+
+function renderFullBtn() {
+  const full = !!nativeFullElement() || el('room').dataset.full === 'true';
+  el('fullBtn').textContent = full ? 'Exit full screen' : 'Full screen';
+}
+
+function setPseudoFull(on) {
+  el('room').dataset.full = String(!!on);
+  // Stops the page scrolling underneath a stage that covers it.
+  document.documentElement.classList.toggle('stage-full', !!on);
+  renderFullBtn();
+}
+
+el('fullBtn').addEventListener('click', async () => {
   const wrap = el('stageWrap');
-  if (document.fullscreenElement) document.exitFullscreen();
-  else wrap.requestFullscreen?.().catch(() => {});
+  if (nativeFullElement()) {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    return;
+  }
+  if (el('room').dataset.full === 'true') return setPseudoFull(false);
+
+  const request = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+  const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+  if (request && enabled !== false) {
+    try {
+      await request.call(wrap);
+      // Turn a phone held upright the film's way. Only allowed inside real
+      // fullscreen, and only on Android; everywhere else it simply rejects.
+      screen.orientation?.lock?.('landscape')?.catch(() => {});
+      return;
+    } catch {}
+  }
+  setPseudoFull(true);
 });
+
+document.addEventListener('fullscreenchange', renderFullBtn);
+document.addEventListener('webkitfullscreenchange', renderFullBtn);
 
 // ------------------------------------------------------------- more sheet
 
@@ -1028,7 +1072,9 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') setMoreOpen(false);
+  if (e.key !== 'Escape') return;
+  setMoreOpen(false);
+  if (el('room').dataset.full === 'true') setPseudoFull(false);
 });
 
 el('copyBtn').addEventListener('click', async (e) => {
