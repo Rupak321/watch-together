@@ -105,8 +105,11 @@ button {
   background: var(--brass);
   color: #1A0E13;
   transition: filter 160ms var(--ease), transform 120ms var(--ease);
+  /* No double-tap-to-zoom wait before a tap registers, and no grey flash
+     painted behind whatever was tapped. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
-button:hover:not(:disabled) { filter: brightness(1.1); }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -116,7 +119,6 @@ button.ghost {
   border: 1px solid var(--rule);
   font-weight: 500;
 }
-button.ghost:hover:not(:disabled) { border-color: var(--lamp); color: var(--lamp); filter: none; }
 
 button.bare {
   background: transparent;
@@ -125,7 +127,6 @@ button.bare {
   padding: 10px 12px;
   font-weight: 500;
 }
-button.bare:hover:not(:disabled) { color: var(--lamp); filter: none; }
 
 input, select {
   font-family: var(--body);
@@ -139,6 +140,18 @@ input, select {
   width: 100%;
 }
 input::placeholder { color: var(--faint); }
+
+/* iOS zooms the whole page into any field whose text is under 16px the
+   moment it is focused, and does not zoom back out — which is how tapping
+   the chat box left the room magnified and sliding sideways. Touch screens
+   get 16px everywhere; the look on a mouse is unchanged. */
+@media (pointer: coarse) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
 
 /* Room codes are read aloud over the phone — always mono, always spaced. */
 input.code {
@@ -160,7 +173,17 @@ label {
 }
 
 a { color: var(--lamp); text-decoration: none; }
-a:hover { text-decoration: underline; }
+
+/* Hover only where there is a pointer that can hover. On a touch screen iOS
+   applies :hover on tap and keeps it until the next tap somewhere else — so
+   Full screen stayed lit amber after pressing it, and Join voice looked
+   switched on when it was not. */
+@media (hover: hover) {
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button.ghost:hover:not(:disabled) { border-color: var(--lamp); color: var(--lamp); filter: none; }
+  button.bare:hover:not(:disabled) { color: var(--lamp); filter: none; }
+  a:hover { text-decoration: underline; }
+}
 
 /* --------------------------------------------------------------- shared */
 
