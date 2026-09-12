@@ -949,8 +949,34 @@ function wakeControls() {
   }, CONTROLS_IDLE_MS);
 }
 
-['pointermove', 'pointerdown', 'touchstart'].forEach((ev) =>
-  el('stageWrap').addEventListener(ev, wakeControls, { passive: true })
+function sleepControls() {
+  clearTimeout(controlsTimer);
+  if (el('room').dataset.mode === 'house') el('stageWrap').classList.remove('awake');
+}
+
+// A mouse wakes the controls by moving. A finger cannot hover, and every
+// touch used to count as "wake" — so once the bar was up on a phone, nothing
+// short of waiting three seconds would put it away again, with the picture
+// half covered the whole time. On touch a tap on the picture toggles the bar,
+// as in any phone video player; a tap on a control itself only keeps it up,
+// or pressing Pause would also hide the bar Pause is in.
+el('stageWrap').addEventListener(
+  'pointermove',
+  (e) => {
+    if (e.pointerType === 'mouse') wakeControls();
+  },
+  { passive: true }
+);
+
+el('stageWrap').addEventListener(
+  'pointerdown',
+  (e) => {
+    if (e.pointerType === 'mouse') return wakeControls();
+    const onControl = e.target.closest('button, input, select, a, .scrub, .sync-panel, .vol-panel');
+    if (onControl || !el('stageWrap').classList.contains('awake')) return wakeControls();
+    sleepControls();
+  },
+  { passive: true }
 );
 
 document.querySelectorAll('.js-play').forEach((b) =>
