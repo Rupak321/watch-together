@@ -960,6 +960,13 @@ const controlsSizer = new ResizeObserver(() => {
 });
 controlsSizer.observe(el('controls'), { box: 'border-box' });
 
+// The same for the faces, which the floating chat stacks on. Their height
+// swings from a name tile to a row of cameras, and wraps on a narrow stage.
+const railSizer = new ResizeObserver(() => {
+  el('stageWrap').style.setProperty('--rail-h', `${el('rail').offsetHeight}px`);
+});
+railSizer.observe(el('rail'));
+
 function wakeControls() {
   el('stageWrap').classList.add('awake');
   clearTimeout(controlsTimer);

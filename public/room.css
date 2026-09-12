@@ -299,7 +299,10 @@ html.stage-full body { overflow: hidden; }
 .floatchat {
   position: absolute;
   left: 14px;
-  bottom: 52px;
+  /* Stacked on the faces, cleared by their measured height (--rail-h, set by
+     room.js). A camera tile is several times taller than a name tile, so the
+     old fixed 52px laid chat lines straight across people's faces. */
+  bottom: calc(14px + var(--rail-h, 30px) + 8px);
   z-index: 4;
   display: flex;
   flex-direction: column;
@@ -598,7 +601,7 @@ html.stage-full body { overflow: hidden; }
    so it sat underneath Full screen. The fallback is the desktop bar's
    height, for the moment before the first measurement arrives. */
 .stage-wrap.awake .rail { bottom: calc(var(--ctrl-h, 76px) + 10px); }
-.stage-wrap.awake .floatchat { bottom: calc(var(--ctrl-h, 76px) + 48px); }
+.stage-wrap.awake .floatchat { bottom: calc(var(--ctrl-h, 76px) + 10px + var(--rail-h, 30px) + 8px); }
 .stage-wrap.awake .sync { bottom: calc(var(--ctrl-h, 76px) + 10px); }
 
 /* ------------------------------------------------------------- foyer under */
