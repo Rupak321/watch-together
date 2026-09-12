@@ -520,7 +520,9 @@ html.stage-full body { overflow: hidden; }
 
   .ctrl-row { flex-wrap: nowrap; gap: 6px; }
   .controls { padding: 34px 10px 10px; }
-  .controls button { min-height: 40px; padding: 8px 12px; font-size: 0.875rem; }
+  /* One line per button. "Exit full screen" broke onto two in a 375px row,
+     doubling its height; the clock is the item that gives way instead. */
+  .controls button { min-height: 40px; padding: 8px 12px; font-size: 0.875rem; white-space: nowrap; }
   .controls .clock {
     font-size: 0.6875rem;
     margin-left: 2px;
