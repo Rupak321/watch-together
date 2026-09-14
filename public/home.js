@@ -56,3 +56,56 @@ el('joinCode').addEventListener('input', (e) => {
     .filter((ch) => ALPHABET.includes(ch))
     .join('');
 });
+
+// ------------------------------------------------------------------ install
+
+// Already opened from the home screen: nothing to offer.
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+// iPadOS reports itself as a Mac; its touch screen gives it away.
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let installPrompt = null;
+
+const showInstall = (on) => (el('installBtn').hidden = !on);
+
+function setHint(open) {
+  el('installHint').hidden = !open;
+  if (open) el('installHintClose').focus();
+  else el('installBtn').focus({ preventScroll: true });
+}
+
+if (!standalone) {
+  // Chrome, Edge and Android hand over their own install prompt once they judge
+  // the site installable. Keep it for the button, rather than let the browser
+  // raise a banner of its own at a moment it picks.
+  addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    showInstall(true);
+  });
+  if (isIOS) showInstall(true);
+}
+
+addEventListener('appinstalled', () => {
+  installPrompt = null;
+  showInstall(false);
+});
+
+el('installBtn').addEventListener('click', async () => {
+  if (!installPrompt) return setHint(true);
+  const prompt = installPrompt;
+  // A prompt can be shown once. Whatever they choose, the button goes; the
+  // browser offers a fresh prompt later if it still makes sense.
+  installPrompt = null;
+  showInstall(false);
+  prompt.prompt();
+  await prompt.userChoice.catch(() => {});
+});
+
+el('installHintClose').addEventListener('click', () => setHint(false));
+// A tap on the dimmed page around the sheet closes it, as does Escape.
+el('installHint').addEventListener('click', (e) => {
+  if (e.target === el('installHint')) setHint(false);
+});
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !el('installHint').hidden) setHint(false);
+});

@@ -30,7 +30,10 @@
 <header class="masthead">
   <div class="wrap masthead-in">
     <div class="wordmark">Watch<span>·</span>Together</div>
-    <span class="eyebrow">Free · no account</span>
+    <div class="masthead-end">
+      <span class="eyebrow">Free · no account</span>
+      <button class="ghost install-btn" id="installBtn" hidden>Install app</button>
+    </div>
   </div>
 </header>
 
@@ -49,7 +52,7 @@
     <div class="entry">
       <div class="entry-card">
         <h2>Start a room</h2>
-        <p>You get a code to share. Nothing to install, no sign-up.</p>
+        <p>You get a code to share. No sign-up, nothing to set up.</p>
         <button id="createBtn">Start a room</button>
       </div>
 
@@ -150,6 +153,26 @@
       way in.</p>
   </div>
 </footer>
+
+<!-- iPhones and iPads have no install prompt to hand over, so Install app
+     explains the two taps instead. -->
+<div class="install-hint" id="installHint" hidden>
+  <div class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <img src="/icons/icon-192.png" alt="" width="56" height="56">
+    <h2 id="installTitle">Add to your Home Screen</h2>
+    <ol>
+      <li>Tap <b>Share</b>
+        <svg class="share-glyph" viewBox="0 0 24 24" width="18" height="18" role="img" aria-label="(the square with an arrow)">
+          <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7.5 10.5H6A1.5 1.5 0 0 0 4.5 12v7.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V12a1.5 1.5 0 0 0-1.5-1.5h-1.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        in your browser's bar.</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+    </ol>
+    <p>It opens like an app — full screen, without the browser's bars around the film.</p>
+    <button id="installHintClose">Got it</button>
+  </div>
+</div>
 
 <script src="/home.js"></script>
 </body>

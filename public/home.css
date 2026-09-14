@@ -40,6 +40,59 @@
    A band of projected light. The headline is the subject, so the light
    falls behind it and the way in sits beside it. */
 
+/* ------------------------------------------------------------ install */
+
+.masthead-end { display: flex; align-items: center; gap: 18px; }
+.install-btn { min-height: 36px; padding: 8px 14px; font-size: 0.8125rem; }
+
+/* A phone has room for the tagline or the button, not both — and the button
+   is the one that does something. */
+@media (max-width: 520px) {
+  .masthead-end:has(#installBtn:not([hidden])) .eyebrow { display: none; }
+}
+
+/* How to install on an iPhone. A sheet from the bottom edge on a phone, the
+   same as the room's More sheet; a card in the middle anywhere wider. */
+.install-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  background: rgba(0, 0, 0, .55);
+  animation: install-fade 200ms var(--ease);
+}
+.install-sheet {
+  width: 100%;
+  max-width: 460px;
+  padding: 26px max(22px, env(safe-area-inset-right, 0px))
+           max(22px, env(safe-area-inset-bottom, 0px)) max(22px, env(safe-area-inset-left, 0px));
+  background: var(--ink-raised);
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  animation: install-rise 220ms var(--ease);
+}
+@media (min-width: 600px) {
+  .install-hint { align-items: center; padding: 24px; }
+  .install-sheet { border-bottom: 1px solid var(--rule); border-radius: 14px; }
+}
+.install-sheet img { display: block; width: 56px; height: 56px; margin-bottom: 16px; }
+.install-sheet h2 { font-size: 1.375rem; margin-bottom: 12px; }
+.install-sheet ol { margin: 0 0 14px; padding-left: 1.3em; color: var(--dim); }
+.install-sheet li + li { margin-top: 6px; }
+.install-sheet b { color: var(--screen); font-weight: 600; }
+.install-sheet p { margin: 0 0 20px; color: var(--muted); font-size: 0.9375rem; }
+.install-sheet button { width: 100%; min-height: 48px; }
+.share-glyph { vertical-align: -3px; color: var(--lamp); }
+
+@keyframes install-fade { from { opacity: 0; } }
+@keyframes install-rise { from { transform: translateY(24px); } }
+@media (prefers-reduced-motion: reduce) {
+  .install-hint, .install-sheet { animation: none; }
+}
+
 .hero {
   position: relative;
   overflow: hidden;
