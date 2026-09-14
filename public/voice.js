@@ -767,6 +767,7 @@ export class VoiceMesh {
         if (entry.ignoreOffer) return;
 
         await pc.setRemoteDescription(data.description);
+        await this.flushCandidates(entry);
         if (data.description.type === 'offer') {
           await pc.setLocalDescription();
           this.send({ t: 'signal', to: from, data: { description: pc.localDescription } });
@@ -774,12 +775,31 @@ export class VoiceMesh {
       } else if (data.candidate) {
         try {
           await pc.addIceCandidate(data.candidate);
-        } catch (err) {
-          if (!entry.ignoreOffer) throw err;
+        } catch {
+          // A candidate can arrive before the description it belongs to: the
+          // other side starts gathering the moment it sets its offer. It used
+          // to be dropped, and the raw WebRTC error landed in the voice notice.
+          // Keep it and add it once a remote description lands. Any other
+          // refusal is one from an offer ignored in a collision, or a stale
+          // one — nothing anyone can act on, so it is not shown.
+          if (!pc.remoteDescription) (entry.pendingCandidates ||= []).push(data.candidate);
         }
       }
     } catch (err) {
       this.hooks.onError?.(err);
+    }
+  }
+
+  /** Add the candidates that arrived ahead of the remote description. */
+  async flushCandidates(entry) {
+    const queued = entry.pendingCandidates || [];
+    entry.pendingCandidates = [];
+    for (const candidate of queued) {
+      try {
+        await entry.pc.addIceCandidate(candidate);
+      } catch {
+        // One from an offer this side ignored in a collision. Harmless.
+      }
     }
   }
 
