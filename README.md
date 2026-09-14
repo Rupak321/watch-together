@@ -77,7 +77,9 @@ pausing brings them back up faster, because a pause is an interruption and peopl
 
 **Playback** — seek bar with hover preview and arrow-key nudges, subtitles found automatically beside the
 film (`movie.vtt` or `movie.srt` next to `movie.mp4`), full screen, separate film and voice volume, and a
-per-device ±300ms nudge for matching a second screen in the same room.
+per-device ±300ms nudge for matching a second screen in the same room. **Pop out** floats a film or a screen
+share over other apps and tabs (picture in picture), still in sync, and the screen stays awake while anything
+plays.
 
 **Talking** — peer-to-peer voice and optional camera over the room's own WebSocket, push-to-talk on **T**,
 mute that shows in the roster, speaking detection that lights up the speaker's tile, and ducking that dips
@@ -177,6 +179,8 @@ its side.
   voices keep playing, and chat and faces are back when you leave it. YouTube has no video of ours to hand
   over, so on an iPhone it fills the window instead.
 - **The sync pill sits in the top corner** on small screens, well clear of Full screen and the rest of the bar.
+- **The screen stays on while a film plays**, where the browser allows a wake lock, and **Pop out** keeps the
+  picture floating while you answer a message in another app.
 - **Screen sharing is desktop only.** No phone browser exposes `getDisplayMedia`; phones can still watch a
   screen shared from a computer, and the button says so.
 - **Notch and home indicator** are respected (`viewport-fit=cover` with safe-area insets), text fields are
