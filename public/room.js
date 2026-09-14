@@ -88,6 +88,7 @@ function enterRoom() {
 
   el('gate').hidden = true;
   el('room').hidden = false;
+  renderThemeColor();
   setupVoice();
 
   // Restore whatever levels they last chose, and push them into the sliders
@@ -720,10 +721,21 @@ function fmt(s) {
 
 // ------------------------------------------------------------- houselights
 
+/**
+ * The installed app's status bar, and the browser's toolbar on Android, take
+ * the page's theme colour. Follow the lights, so a dark film is not framed by
+ * a plum stripe, and the foyer's plum runs up behind the clock.
+ */
+function renderThemeColor() {
+  const house = el('room').dataset.mode === 'house';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', house ? '#0B0908' : '#2A1620');
+}
+
 function setMode(mode) {
   const room = el('room');
   if (room.dataset.mode === mode) return;
   room.dataset.mode = mode;
+  renderThemeColor();
   el('lightsBtn').textContent = mode === 'house' ? 'Lights up' : 'Lights down';
   // The sheet belongs to the house controls; it must not survive the lights
   // coming up, where its bar is hidden and nothing could dismiss it.
