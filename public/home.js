@@ -22,6 +22,13 @@ el('createBtn').addEventListener('click', async (e) => {
   }
 });
 
+// The installed app's "Start a room" shortcut — press and hold the icon —
+// lands here. Drop the flag first, so going back does not open another room.
+if (new URLSearchParams(location.search).has('start')) {
+  history.replaceState(null, '', '/');
+  el('createBtn').click();
+}
+
 function join() {
   const code = el('joinCode').value.trim().toUpperCase();
   if (code.length < 4) {

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B0908">
+<title>Offline · Watch Together</title>
+<!-- Self-contained on purpose: this is served from the cache when nothing
+     else can load, so it cannot lean on style.css or web fonts. -->
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+             max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+    background: radial-gradient(90% 70% at 30% 10%, #2A1620 0%, #0B0908 72%);
+    color: #F2EDE4;
+    font: 16px/1.6 "Instrument Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 34ch; }
+  .mark { display: block; width: 72px; height: 72px; margin: 0 auto 24px; }
+  h1 {
+    margin: 0 0 10px;
+    font: 700 1.75rem/1.15 "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  }
+  p { margin: 0 0 24px; color: #CFC3B8; }
+  button {
+    min-height: 48px;
+    padding: 14px 24px;
+    border: 0;
+    border-radius: 4px;
+    background: #C9A227;
+    color: #0B0908;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<main>
+  <img class="mark" src="/icons/icon-192.png" alt="" width="72" height="72">
+  <h1>You're offline</h1>
+  <p>Watch Together needs a connection to keep everyone on the same frame. It will pick up again
+    as soon as you're back.</p>
+  <button type="button" onclick="location.reload()">Try again</button>
+</main>
+<script>
+  // Back online: go straight to where they were trying to be.
+  addEventListener('online', () => location.reload());
+</script>
+</body>
+</html>
