@@ -604,6 +604,18 @@ html.stage-full body { overflow: hidden; }
 .stage-wrap.awake .floatchat { bottom: calc(var(--ctrl-h, 76px) + 10px + var(--rail-h, 30px) + 8px); }
 .stage-wrap.awake .sync { bottom: calc(var(--ctrl-h, 76px) + 10px); }
 
+/* Small stage: the pill moves to the top corner. At the bottom it sat on the
+   exact spot Full screen takes when the bar comes up, so with the bar asleep
+   a thumb reaching for Full screen landed on the pill and opened the sync
+   panel instead — on a phone held sideways the button seemed not to exist.
+   Up here it also stops jumping every time the bar wakes. */
+@media (max-width: 900px), (max-height: 520px) {
+  .sync,
+  .stage-wrap.awake .sync { top: 10px; bottom: auto; }
+  .sync-panel { top: 40px; bottom: auto; }
+  .room[data-full="true"] .sync { top: max(10px, env(safe-area-inset-top, 0px)); }
+}
+
 /* ------------------------------------------------------------- foyer under */
 
 .under {
