@@ -181,6 +181,11 @@ its side.
 - **The sync pill sits in the top corner** on small screens, well clear of Full screen and the rest of the bar.
 - **The screen stays on while a film plays**, where the browser allows a wake lock, and **Pop out** keeps the
   picture floating while you answer a message in another app.
+- **It installs like an app.** **Install app** on the home page adds it to the home screen — Android and
+  desktop Chrome use their own install prompt, and on an iPhone it shows the two taps (Share, then Add to Home
+  Screen). Opened from there it runs without the browser's bars, the status bar follows the lights, holding the
+  icon offers **Start a room**, and a room link opened with no connection shows an offline page rather than the
+  browser's error. The service worker caches nothing the room runs on, so an installed app is never a stale one.
 - **Screen sharing is desktop only.** No phone browser exposes `getDisplayMedia`; phones can still watch a
   screen shared from a computer, and the button says so.
 - **Notch and home indicator** are respected (`viewport-fit=cover` with safe-area insets), text fields are
@@ -287,6 +292,9 @@ public/
   voice.js          Peer-to-peer voice, camera and screen share
   browser.js        The embedded browser
   tick-worker.js    Worker-thread timer, so a background tab keeps correcting
+  manifest.webmanifest, sw.js, pwa.js, offline.html
+                    The home-screen app: manifest, service worker, its registration, offline page
+  icon.svg, icons/  The app icon and the PNG sizes rendered from it
 scripts/
   share-local.mjs   Serve a folder of films over a Cloudflare quick tunnel, with Range support
 docs/screenshots/   The images in this README
