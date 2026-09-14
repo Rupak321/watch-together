@@ -569,6 +569,7 @@ function startTicking() {
 }
 
 function tick() {
+  renderWakeLock();
   if (!source) return;
 
   // A live stream is already the same moment for everyone — there is one
@@ -1086,6 +1087,47 @@ el('fullBtn').addEventListener('click', async () => {
 
 document.addEventListener('fullscreenchange', renderFullBtn);
 document.addEventListener('webkitfullscreenchange', renderFullBtn);
+
+// -------------------------------------------------------------- wake lock
+
+/**
+ * Keep the screen on while something plays. Nobody touches a phone during a
+ * film, so it dimmed and locked half a minute in, and a laptop slept on its
+ * own timer. The browser lets go of the lock whenever the page is hidden, so it
+ * is taken again on the way back. Runs every tick, and only acts when what it
+ * wants and what it holds differ.
+ */
+let wakeLock = null;
+let wakeLockPending = false;
+let wakeLockRetryAt = 0;
+
+async function renderWakeLock() {
+  if (!navigator.wakeLock) return;
+  const want = !!source && (roomState.playing || !!source.isLive) && document.visibilityState === 'visible';
+
+  if (want && !wakeLock && !wakeLockPending && Date.now() >= wakeLockRetryAt) {
+    wakeLockPending = true;
+    try {
+      const lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => {
+        if (wakeLock === lock) wakeLock = null;
+      });
+      wakeLock = lock;
+    } catch {
+      // Refused — battery saver, or a browser that wants a tap first. Ask
+      // again later rather than on every tick.
+      wakeLockRetryAt = Date.now() + 5000;
+    } finally {
+      wakeLockPending = false;
+    }
+  } else if (!want && wakeLock) {
+    const lock = wakeLock;
+    wakeLock = null;
+    lock.release().catch(() => {});
+  }
+}
+
+document.addEventListener('visibilitychange', renderWakeLock);
 
 // ------------------------------------------------------------- more sheet
 
