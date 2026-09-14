@@ -22,7 +22,9 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding-block: 20px;
+  /* Opened from the home screen, an iPhone draws the page under a
+     translucent status bar, so the top of the page starts below it. */
+  padding-block: calc(20px + env(safe-area-inset-top, 0px)) 20px;
 }
 .wordmark {
   font-family: var(--display);
