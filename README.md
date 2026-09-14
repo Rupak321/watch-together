@@ -171,9 +171,12 @@ its side.
   screen; everything else folds into a sheet.
 - **Tap the picture** to show or hide the controls, as in any phone video player.
 - **Chat stays under the picture** while the film plays.
-- **Full screen on iPhone fills the window.** iPhones only allow fullscreen on a bare `<video>`, which would
-  leave the controls, chat and faces behind, so the stage covers the window instead. Everywhere else it is
-  real fullscreen, and Android turns an upright phone landscape.
+- **Full screen is real full screen, held either way.** Android and desktops put the whole stage — picture,
+  controls, chat and faces — into fullscreen, and Android turns an upright phone landscape. iPhones only allow
+  fullscreen on a bare `<video>`, so there Full screen opens the system player: the film stays in sync and
+  voices keep playing, and chat and faces are back when you leave it. YouTube has no video of ours to hand
+  over, so on an iPhone it fills the window instead.
+- **The sync pill sits in the top corner** on small screens, well clear of Full screen and the rest of the bar.
 - **Screen sharing is desktop only.** No phone browser exposes `getDisplayMedia`; phones can still watch a
   screen shared from a computer, and the button says so.
 - **Notch and home indicator** are respected (`viewport-fit=cover` with safe-area insets), text fields are
