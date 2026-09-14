@@ -516,8 +516,11 @@ html.stage-full body { overflow: hidden; }
    phone's picture entirely. The row keeps Play, the clock, More and Full
    screen; the rest fold into a sheet that rises from the bottom edge. The
    threshold is where the house stage — min(width, height × 16/9) — drops
-   under the ~900px one unfolded row needs. */
-@media (max-width: 900px), (max-height: 520px) {
+   under what one unfolded row needs: 893px bare, 985px with Pop out, and
+   1,086px once Subtitles shows too, plus a little the clock can take as the
+   film gets longer. Below that the row wrapped and left Full screen alone on
+   a second line. 640px tall is where the picture is 1,138px wide. */
+@media (max-width: 1140px), (max-height: 640px) {
   #moreBtn { display: inline-block; }
   .ctrl-more { display: none; }
 
@@ -609,7 +612,7 @@ html.stage-full body { overflow: hidden; }
    a thumb reaching for Full screen landed on the pill and opened the sync
    panel instead — on a phone held sideways the button seemed not to exist.
    Up here it also stops jumping every time the bar wakes. */
-@media (max-width: 900px), (max-height: 520px) {
+@media (max-width: 1140px), (max-height: 640px) {
   .sync,
   .stage-wrap.awake .sync { top: 10px; bottom: auto; }
   .sync-panel { top: 40px; bottom: auto; }
