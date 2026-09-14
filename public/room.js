@@ -575,6 +575,9 @@ function tick() {
   // origin producing frames in real time. Correcting it would only shove
   // this viewer away from the presenter with no way back.
   if (source.isLive) {
+    // The iPhone's own full screen player can pause it, and a live picture is
+    // only worth anything moving.
+    if (source.isPaused?.()) source.play();
     el('mDrift').textContent = 'live';
     el('mAction').textContent = 'no sync needed';
     el('syncDot').classList.remove('warn');
@@ -606,7 +609,10 @@ function tick() {
   // message. Someone joining a room that is already playing never receives a
   // `playat`, so nothing else would ever call play() for them — they used to
   // sit on a frozen frame while the corrector seeked it around underneath.
-  if (playbackApplied !== true) {
+  // The same when something outside the room paused the player — the pause
+  // button in the iPhone's full screen player. Left alone, that phone sat on a
+  // frozen frame while the room played on, and the flag said all was well.
+  if (playbackApplied !== true || source.isPaused?.()) {
     source.play();
     playbackApplied = true;
   }

@@ -236,6 +236,10 @@ function wrapFile(video, mountEl) {
     pause() {
       video.pause();
     },
+    /** Paused by something other than the room — the iPhone's own player. */
+    isPaused() {
+      return video.paused && !video.ended;
+    },
     seek(t) {
       video.currentTime = Math.max(0, t);
     },
@@ -410,6 +414,9 @@ export function createStreamSource(mountEl, stream) {
     pause() {
       // Pausing a live stream would only desync this viewer from the
       // presenter, with no way back. Ignore it.
+    },
+    isPaused() {
+      return video.paused;
     },
     seek() {
       /* nothing to seek in a live stream */
