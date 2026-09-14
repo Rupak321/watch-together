@@ -238,6 +238,13 @@ export class VoiceMesh {
   async enableMic() {
     if (this.micOn) return;
 
+    // Before anything is awaited. The level meter below needs the audio
+    // context, which was only created later, in joinMesh — so the meter hit a
+    // null context and threw. Whoever joined voice first in a room was shown
+    // "On voice", told no microphone was found, and never connected. Creating
+    // it here, inside the tap, is also what a phone requires to start one.
+    this.ensureAudioContext();
+
     // Ask for the browser's own echo cancellation. It only cancels audio
     // WebRTC itself rendered, never the film coming out of the speakers —
     // which is why the room still recommends headphones.
@@ -255,10 +262,20 @@ export class VoiceMesh {
     for (const t of added) this.localStream.addTrack(t);
 
     this.micOn = true;
-    this.applyMicGate();
-    this.meterLocal();
-
-    await this.joinMesh();
+    try {
+      this.applyMicGate();
+      this.meterLocal();
+      await this.joinMesh();
+    } catch (err) {
+      // Never leave the button saying On voice for a microphone that is not
+      // reaching anyone.
+      for (const t of added) {
+        this.localStream.removeTrack(t);
+        t.stop();
+      }
+      this.micOn = false;
+      throw err;
+    }
     this.announce();
 
     for (const track of added) {

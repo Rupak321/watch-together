@@ -190,10 +190,16 @@ document.querySelectorAll('.js-mic').forEach((b) =>
       if (voice.micOn) voice.disableMic();
       else await voice.enableMic();
     } catch (err) {
+      // Say what actually happened. Every failure used to read "No microphone
+      // found", which sent people hunting for a microphone that was there.
       el('voiceNotice').textContent =
-        err.name === 'NotAllowedError'
+        err.name === 'NotAllowedError' || err.name === 'SecurityError'
           ? 'Microphone access was blocked. Allow it in your browser’s site settings, then try again.'
-          : 'No microphone found on this device.';
+          : err.name === 'NotFoundError' || err.name === 'OverconstrainedError'
+            ? 'No microphone found on this device.'
+            : err.name === 'NotReadableError'
+              ? 'Another app is using the microphone. Close it, then try again.'
+              : 'Voice could not start. Try again.';
       el('voiceNotice').hidden = false;
     }
     renderVoiceButtons();
