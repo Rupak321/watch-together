@@ -344,6 +344,9 @@ function handle(m) {
       // Cameras run at a lower profile once the film starts, and relax again
       // when it stops.
       voice?.reprofileCamera(!!m.playing);
+      // Nothing playing means nothing to protect: bring back any cameras a
+      // stall switched off, rather than waiting for the film to refill.
+      if (!m.playing) voice?.applyBufferPressure(0, false);
       renderState();
       return;
 

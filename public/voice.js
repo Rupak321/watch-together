@@ -579,12 +579,25 @@ export class VoiceMesh {
    * the evening, a frozen thumbnail does not.
    */
   applyBufferPressure(bufferedAhead, playing) {
-    if (!playing || !this.onMesh) return;
+    if (!this.onMesh) return;
 
-    // Under five seconds of runway, stop receiving video altogether. Voice
+    // Not playing: there is no film to protect, so cameras come straight back.
+    // They used to stay off after a stall until the film played on and
+    // refilled, so a pause to talk it over left everyone's camera blank.
+    if (!playing) {
+      this.setIncomingVideo(true);
+      this.hooks.onThrottle?.(false);
+      return;
+    }
+
+    // Under three seconds of runway, stop receiving video altogether. Voice
     // survives — a frozen thumbnail is a far smaller loss than a stalled film.
-    this.setIncomingVideo(bufferedAhead >= 5);
-    this.hooks.onThrottle?.(bufferedAhead < 5);
+    // Back on only past eight: a single threshold made a buffer hovering near
+    // it switch cameras off and on every two seconds, renegotiating every
+    // connection each time.
+    const on = this.incomingVideo !== false ? bufferedAhead >= 3 : bufferedAhead >= 8;
+    this.setIncomingVideo(on);
+    this.hooks.onThrottle?.(!on);
   }
 
   /**
