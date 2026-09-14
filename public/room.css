@@ -19,6 +19,12 @@ body { overflow-x: hidden; }
      up instead of the title floating out at the column's far corners. */
   --stage-w: min(100%, calc((100dvh - var(--chrome)) * 16 / 9));
 
+  /* The ambient glow spills past the picture by design, and must never make
+     the page scroll. clip rather than hidden: it makes no scroll container,
+     and fixed things inside — the More sheet, the window-filling stage —
+     still measure against the window. */
+  overflow: clip;
+
   /* Definite, not a minimum. An fr track has no free space to divide when
      the container's height is auto, so it falls back to sizing by content —
      which is how a tall sidebar grew the row it was supposed to be confined
@@ -141,6 +147,55 @@ body { overflow-x: hidden; }
 /* Dimmed while the lights are up, full while they're down. */
 .stage-wrap { filter: brightness(.66) saturate(.8); transition: filter 900ms var(--ease); }
 .room[data-mode="house"] .stage-wrap { filter: none; }
+
+/* ------------------------------------------------------------ ambient glow
+   The film's colours spilling into the dark around the picture. room.js
+   draws each frame onto a 48×27 canvas; here it is enlarged to the stage's
+   size and blurred, which at that resolution is all the softening it needs.
+
+   It shares the stage's grid cell, placed explicitly on both: left to
+   auto-placement, the canvas would take the stage's cell and push the
+   picture a row down. Same centring and width rules as the stage, so the
+   glow tracks it through every layout and the lights transition. */
+.stage-wrap,
+.ambient { grid-row: 2; grid-column: 1; }
+
+.ambient {
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: var(--stage-w);
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(1.16);
+  filter: blur(clamp(32px, 4.5vw, 72px)) saturate(1.35);
+  transition: opacity 900ms var(--ease);
+}
+/* Faint with the lights up, where the picture itself is dimmed; full with
+   them down. */
+.room[data-ambient="true"] .ambient { opacity: .32; }
+.room[data-ambient="true"][data-mode="house"] .ambient { opacity: .8; }
+
+/* Inside the frame, under the picture: fills letterbox bars when the film's
+   shape is not the frame's. Only drawn visible when there are bars, so a
+   16:9 film pays nothing for a blur nobody would see. */
+.ambient-bars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(1.12);
+  filter: blur(28px) saturate(1.25) brightness(.72);
+  transition: opacity 600ms ease;
+}
+.room[data-ambient="true"] .stage-wrap[data-bars="true"] .ambient-bars { opacity: 1; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .ambient, .ambient-bars { display: none; }
+}
 
 /* ---------------------------------------------------- window-filling stage
    The iPhone's stand-in for full screen, which it grants only to a bare

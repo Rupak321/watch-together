@@ -1244,6 +1244,101 @@ for (const type of ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpre
   document.addEventListener(type, renderPipBtn, true);
 }
 
+// ------------------------------------------------------------ ambient glow
+
+/**
+ * The film's colours spilling into the dark around the picture, and into any
+ * letterbox bars, like a television's backlight.
+ *
+ * Drawn, never read. A video from another site with no CORS headers — most
+ * films, the Internet Archive's included — taints any canvas it is drawn
+ * into, and a tainted canvas refuses getImageData. It still displays. So each
+ * frame goes onto a 48×27 canvas as it is, CSS enlarges and blurs it, and no
+ * pixel is ever read back. YouTube plays inside someone else's frame and
+ * cannot be drawn at all, so it has no glow; nor does the test clock.
+ */
+const AMBIENT_MS = 110;     // about nine frames a second: colour, not motion
+const AMBIENT_BLEND = 0.3;  // each frame laid over the last, so a hard cut eases in
+const AMBIENT_SETTLE = 14;  // blends after the picture stops, before drawing stops
+
+let ambientOn = true;
+try {
+  ambientOn = localStorage.getItem('wt:ambient') !== 'off';
+} catch {}
+
+const ambient = {
+  ctx: [el('ambient'), el('ambientBars')].map((c) => c.getContext('2d', { alpha: false })),
+  video: null,
+  at: 0,
+  time: -1,
+  still: 0,
+  lit: null,
+  bars: null
+};
+
+// Attributes change only when the answer does: a write every frame would
+// restyle the whole room nine times a second.
+function setAmbientState(lit, bars) {
+  if (lit !== ambient.lit) el('room').dataset.ambient = String((ambient.lit = lit));
+  if (bars !== ambient.bars) el('stageWrap').dataset.bars = String((ambient.bars = bars));
+}
+
+function drawAmbient(now) {
+  requestAnimationFrame(drawAmbient);
+  if (now - ambient.at < AMBIENT_MS) return;
+  ambient.at = now;
+
+  const video = ambientOn ? stageVideo() : null;
+  if (!video) {
+    ambient.video = null;
+    setAmbientState(false, false);
+    return;
+  }
+  // No frame to draw this instant — buffering after a seek, or still loading.
+  // The same film keeps its last colours up rather than blinking the glow out
+  // on every seek; a new one waits for its first frame.
+  if (video.readyState < 2 || !video.videoWidth) {
+    if (video !== ambient.video) setAmbientState(false, false);
+    return;
+  }
+
+  // A picture that is not changing needs a few more blends to settle, not
+  // nine draws a second of the same frame. A seek while paused counts as a
+  // change.
+  const fresh = video !== ambient.video;
+  const moving = !video.paused || video.currentTime !== ambient.time;
+  ambient.time = video.currentTime;
+  if (fresh || moving) ambient.still = 0;
+  else if (ambient.still >= AMBIENT_SETTLE) return;
+  else ambient.still++;
+
+  ambient.video = video;
+  for (const ctx of ambient.ctx) {
+    ctx.globalAlpha = fresh ? 1 : AMBIENT_BLEND;
+    try {
+      ctx.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+    } catch {
+      // Not drawable this instant; the next frame tries again.
+    }
+  }
+
+  // Letterbox bars exist only when the film's shape is not the frame's.
+  const wrap = el('stageWrap');
+  const bars =
+    wrap.clientHeight > 0 &&
+    Math.abs(video.videoWidth / video.videoHeight - wrap.clientWidth / wrap.clientHeight) > 0.03;
+  setAmbientState(true, bars);
+}
+requestAnimationFrame(drawAmbient);
+
+el('ambientToggle').checked = ambientOn;
+el('ambientToggle').addEventListener('change', (e) => {
+  ambientOn = e.target.checked;
+  try {
+    localStorage.setItem('wt:ambient', ambientOn ? 'on' : 'off');
+  } catch {}
+});
+
 // ------------------------------------------------------------- more sheet
 
 function setMoreOpen(open) {

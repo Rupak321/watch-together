@@ -54,7 +54,13 @@
     <button class="ghost" id="leaveBtn" style="min-height:36px;padding:8px 14px;font-size:.8125rem">Leave</button>
   </header>
 
+  <!-- The film's colours around the picture: drawn tiny, enlarged and blurred
+       by CSS. A sibling of the stage, not a child — the stage clips. -->
+  <canvas class="ambient" id="ambient" width="48" height="27" aria-hidden="true"></canvas>
+
   <main class="stage-wrap" id="stageWrap">
+    <!-- The same glow inside the frame, showing through any letterbox bars. -->
+    <canvas class="ambient-bars" id="ambientBars" width="48" height="27" aria-hidden="true"></canvas>
     <div class="stage" id="stage"></div>
 
     <div class="stage-empty" id="stageEmpty">
@@ -232,13 +238,18 @@
     </div>
 
     <div class="panel">
-      <span class="eyebrow">Audio</span>
+      <span class="eyebrow">Picture and sound</span>
       <div class="mixer">
         <label for="movieVol">Film <span class="mono" data-volval="movie">100%</span></label>
         <input type="range" id="movieVol" data-vol="movie" min="0" max="100" step="5" value="100">
         <label for="voiceVol">Voices <span class="mono" data-volval="voice">100%</span></label>
         <input type="range" id="voiceVol" data-vol="voice" min="0" max="100" step="5" value="100">
       </div>
+      <label class="check" style="margin-top:14px">
+        <input type="checkbox" id="ambientToggle" checked> Ambient glow
+      </label>
+      <p class="faint" style="font-size:.75rem;margin-top:4px">The film's colours around the picture, like a
+        TV's backlight. Only on this device.</p>
     </div>
 
     <div class="panel chat-panel">
