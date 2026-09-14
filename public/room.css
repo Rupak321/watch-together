@@ -413,6 +413,22 @@ html.stage-full body { overflow: hidden; }
   transition: opacity 260ms ease;
 }
 .room[data-mode="house"] .stage-wrap.awake .controls { opacity: 1; pointer-events: auto; }
+
+/* In full screen the bar is the only way out, so it answers a tap or the mouse
+   whatever the lights are doing. A friend pausing used to bring the lights up
+   and hide it, leaving no Exit full screen and no Play. Chat and the sync pill
+   ride on the picture there too, and the picture is never dimmed. Separate
+   rules, because a browser that does not know one of these selectors drops
+   the whole list it sits in. */
+.room[data-full="true"] .stage-wrap.awake .controls { opacity: 1; pointer-events: auto; }
+.stage-wrap:fullscreen.awake .controls { opacity: 1; pointer-events: auto; }
+.stage-wrap:-webkit-full-screen.awake .controls { opacity: 1; pointer-events: auto; }
+.room[data-full="true"] .floatchat,
+.room[data-full="true"] .sync { opacity: 1; }
+.stage-wrap:fullscreen .floatchat,
+.stage-wrap:fullscreen .sync { opacity: 1; }
+.stage-wrap:fullscreen { filter: none; }
+.stage-wrap:-webkit-full-screen { filter: none; }
 .room[data-mode="house"] .stage-wrap.awake { cursor: default; }
 .room[data-mode="house"] .stage-wrap { cursor: none; }
 

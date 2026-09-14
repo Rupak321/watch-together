@@ -55,6 +55,11 @@ let roomState = {
 let pendingStart = null;
 let desiredPlaying = false;
 let playbackApplied = null; // what we last told the player, so we do not spam it
+// Someone's own Lights up or down, held until the room changes what is on
+// screen. The mode and source the room last implied, to notice that change.
+let lightsChoice = null;
+let autoMode = null;
+let autoSourceKey = null;
 
 // ------------------------------------------------------------------- setup
 
@@ -324,7 +329,18 @@ function handle(m) {
       // their screen with it.
       const live = m.source?.kind === 'screen';
       el('room').dataset.live = String(live);
-      setMode(m.playing || live ? 'house' : 'foyer');
+      // The room sets the lights when what is on screen changes: a film
+      // starting or pausing, or a new source. A personal Lights up or down
+      // holds until then. It used to snap back on every state message, so the
+      // lights came down again the moment anyone else seeked.
+      {
+        const auto = m.playing || live ? 'house' : 'foyer';
+        const key = m.source ? `${m.source.kind}:${m.source.id}:${m.source.streamId || ''}` : '';
+        if (auto !== autoMode || key !== autoSourceKey) lightsChoice = null;
+        autoMode = auto;
+        autoSourceKey = key;
+        setMode(lightsChoice || auto);
+      }
       // Cameras run at a lower profile once the film starts, and relax again
       // when it stops.
       voice?.reprofileCamera(!!m.playing);
@@ -736,13 +752,16 @@ function setMode(mode) {
   if (room.dataset.mode === mode) return;
   room.dataset.mode = mode;
   renderThemeColor();
-  el('lightsBtn').textContent = mode === 'house' ? 'Lights up' : 'Lights down';
+  for (const b of document.querySelectorAll('.js-lights')) {
+    b.textContent = mode === 'house' ? 'Lights up' : 'Lights down';
+  }
   // The sheet belongs to the house controls; it must not survive the lights
   // coming up, where its bar is hidden and nothing could dismiss it.
   setMoreOpen(false);
-  // Same for a window-filling stage: its only exit is in that bar.
-  if (mode !== 'house') setPseudoFull(false);
-  if (mode === 'house') wakeControls();
+  // Full screen stays as it is. Its bar answers a tap in either light (see
+  // room.css), so a friend pausing no longer throws anyone out of it — or,
+  // with real full screen, strands them in it with no controls at all.
+  wakeControls();
 }
 
 function setPlayEnabled(on) {
@@ -762,6 +781,10 @@ function renderState() {
   for (const b of document.querySelectorAll('.js-play')) b.disabled = !source || !allowed;
   el('scrub').setAttribute('aria-disabled', String(!allowed));
   el('seekBtn') && (el('seekBtn').disabled = !mayControl);
+
+  // The Lights button under the picture, for getting the lights back down.
+  // Only with something on the stage; before that there is nothing to dim for.
+  el('lightsFoyerBtn').hidden = !roomState.source;
 
   renderBrowseTab();
   renderHostControls();
@@ -917,7 +940,7 @@ function addChat(name, text, quiet) {
 
   // While the lights are down, chat rises over the film and leaves again —
   // a persistent panel would either cover the picture or shrink it.
-  if (!quiet && el('room').dataset.mode === 'house') {
+  if (!quiet && (el('room').dataset.mode === 'house' || inFullScreen())) {
     const f = document.createElement('div');
     f.className = 'line';
     const w = document.createElement('span');
@@ -993,7 +1016,7 @@ function wakeControls() {
   controlsTimer = setTimeout(() => {
     // Not while the More sheet is open: it lives inside the bar, and fading
     // the bar would fade the sheet out from under someone mid-adjustment.
-    if (el('room').dataset.mode === 'house' && el('ctrlMore').dataset.open !== 'true') {
+    if (barHides() && el('ctrlMore').dataset.open !== 'true') {
       el('stageWrap').classList.remove('awake');
     }
   }, CONTROLS_IDLE_MS);
@@ -1001,7 +1024,17 @@ function wakeControls() {
 
 function sleepControls() {
   clearTimeout(controlsTimer);
-  if (el('room').dataset.mode === 'house') el('stageWrap').classList.remove('awake');
+  if (barHides()) el('stageWrap').classList.remove('awake');
+}
+
+function inFullScreen() {
+  return !!nativeFullElement() || el('room').dataset.full === 'true';
+}
+
+// The bar fades by itself with the lights down, and in full screen whatever
+// the lights, where it is the only way out and comes back on a tap.
+function barHides() {
+  return el('room').dataset.mode === 'house' || inFullScreen();
 }
 
 // A mouse wakes the controls by moving. A finger cannot hover, and every
@@ -1035,9 +1068,15 @@ el('stageWrap').addEventListener(
 document.querySelectorAll('.js-play').forEach((b) =>
   b.addEventListener('click', () => send({ t: roomState.playing ? 'pause' : 'play' }))
 );
-el('lightsBtn').addEventListener('click', () => {
-  setMode(el('room').dataset.mode === 'house' ? 'foyer' : 'house');
-});
+// Two Lights buttons: one in the house bar, one under the picture for when the
+// lights are up and that bar is hidden. Before the second, Lights up was a
+// one-way trip until someone paused and played again.
+document.querySelectorAll('.js-lights').forEach((b) =>
+  b.addEventListener('click', () => {
+    lightsChoice = el('room').dataset.mode === 'house' ? 'foyer' : 'house';
+    setMode(lightsChoice);
+  })
+);
 
 // ------------------------------------------------------------ full screen
 
