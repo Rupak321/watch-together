@@ -165,6 +165,23 @@ export function createFileSource(mountEl, url) {
   });
 }
 
+/**
+ * Where to fetch a subtitle file from. A page may read another site's file
+ * only when that site sends CORS headers, and most hosts — the Internet
+ * Archive among them — do not: the lookup failed, subtitles beside the film
+ * never loaded, and every film logged two errors. The Worker fetches those
+ * instead. Files on this site are read directly.
+ */
+function subtitleFetchUrl(url) {
+  try {
+    const u = new URL(url, location.href);
+    if (u.origin === location.origin) return u.href;
+  } catch {
+    return url;
+  }
+  return `/api/subtitles?url=${encodeURIComponent(url)}`;
+}
+
 /** SubRip is nearly WebVTT: a header, no cue numbers, dots not commas. */
 function srtToVtt(text) {
   return (
@@ -203,7 +220,7 @@ function wrapFile(video, mountEl) {
 
       let text;
       try {
-        const res = await fetch(url);
+        const res = await fetch(subtitleFetchUrl(url));
         if (!res.ok) return false;
         text = await res.text();
       } catch {

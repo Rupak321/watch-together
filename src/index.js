@@ -127,6 +127,25 @@ async function archivePick(id) {
  * still yields the one thing this app actually wants from it.
  */
 
+/**
+ * A subtitle file beside a film, fetched for the page. A page can read another
+ * site's file only when that site sends CORS headers, and most hosts do not,
+ * so the room's lookup for movie.vtt beside movie.mp4 failed — and logged an
+ * error — on nearly every film. Only .vtt and .srt, only small ones, and never
+ * an HTML error page passed off as subtitles.
+ */
+const SUBTITLE_MAX_BYTES = 2 * 1024 * 1024;
+
+async function fetchSubtitles(target) {
+  if (!/\.(vtt|srt)$/i.test(target.pathname)) return null;
+  const res = await fetch(target, { redirect: 'follow' });
+  if (!res.ok) return null;
+  if (Number(res.headers.get('content-length') || 0) > SUBTITLE_MAX_BYTES) return null;
+  const text = await res.text();
+  if (text.length > SUBTITLE_MAX_BYTES || /^\s*</.test(text)) return null;
+  return text;
+}
+
 /** Blocks the request from being aimed back inside the network fetching it. */
 function safeUrl(raw) {
   let u;
@@ -405,6 +424,23 @@ export default {
           { ok: false, error: 'That site could not be reached. Check the address, or open it in a tab.' },
           { status: 502 }
         );
+      }
+    }
+
+    // 204 rather than 404 when there is no file: the room asks for movie.vtt
+    // and movie.srt on every film, and each 404 is an error in the console
+    // even though nothing went wrong.
+    if (url.pathname === '/api/subtitles') {
+      const target = safeUrl(url.searchParams.get('url') || '');
+      if (!target) return new Response(null, { status: 204 });
+      try {
+        const text = await fetchSubtitles(target);
+        if (text === null) return new Response(null, { status: 204 });
+        return new Response(text, {
+          headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' }
+        });
+      } catch {
+        return new Response(null, { status: 204 });
       }
     }
 
