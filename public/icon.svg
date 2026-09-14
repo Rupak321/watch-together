@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Two viewers, one frame: two rings whose overlap is lit, with the film
+       playing in it. Full bleed, with everything inside the central 80% circle
+       so Android's maskable crop and iOS's rounded corners never touch it. -->
+  <defs>
+    <radialGradient id="ground" cx="50%" cy="28%" r="82%">
+      <stop offset="0" stop-color="#4A2733"/>
+      <stop offset="0.55" stop-color="#2A1620"/>
+      <stop offset="1" stop-color="#0B0908"/>
+    </radialGradient>
+    <clipPath id="left"><circle cx="206" cy="256" r="118"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="url(#ground)"/>
+  <circle cx="306" cy="256" r="118" fill="#E8A33D" clip-path="url(#left)"/>
+  <circle cx="206" cy="256" r="118" fill="none" stroke="#E8A33D" stroke-width="26"/>
+  <circle cx="306" cy="256" r="118" fill="none" stroke="#E8A33D" stroke-width="26"/>
+  <path d="M243 227 L243 285 L283 256 Z" fill="#0B0908" stroke="#0B0908" stroke-width="10" stroke-linejoin="round"/>
+</svg>
