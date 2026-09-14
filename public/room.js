@@ -1061,6 +1061,20 @@ el('fullBtn').addEventListener('click', async () => {
       return;
     } catch {}
   }
+
+  // An iPhone. Filling the window keeps the chat and faces, but held sideways
+  // the picture already fills the window's height, so it changed nothing: the
+  // browser's bars stayed and Full screen looked dead. The system player on
+  // the <video> itself is the only real full screen there. The film keeps its
+  // sync and voices keep playing under it. YouTube and the test clock have no
+  // <video> of ours, so they still fill the window.
+  const video = el('stage').querySelector('video');
+  if (video?.webkitEnterFullscreen && video.webkitSupportsFullscreen !== false) {
+    try {
+      video.webkitEnterFullscreen();
+      return;
+    } catch {}
+  }
   setPseudoFull(true);
 });
 
