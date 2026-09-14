@@ -570,9 +570,11 @@ html.stage-full body { overflow: hidden; }
   }
 
   .ctrl-more > button { width: 100%; min-height: 44px; }
-  /* No subtitles on this film: let Lights up take the whole row rather than
-     sit beside an empty cell. */
-  .ctrl-more #ccBtn[hidden] + #lightsBtn { grid-column: 1 / -1; }
+  /* Subtitles and Pop out come and go with the source. Lights up takes the
+     whole row whenever it would otherwise sit beside an empty cell — with
+     neither of them showing, or with both. */
+  .ctrl-more #ccBtn[hidden] + #pipBtn[hidden] + #lightsBtn,
+  .ctrl-more #ccBtn:not([hidden]) + #pipBtn:not([hidden]) + #lightsBtn { grid-column: 1 / -1; }
 
   .ctrl-more .react-strip { grid-column: 1 / -1; order: 3; justify-content: space-between; }
   .ctrl-more .react-strip button { flex: 1; font-size: 22px; min-height: 44px; }

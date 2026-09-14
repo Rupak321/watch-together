@@ -570,6 +570,7 @@ function startTicking() {
 
 function tick() {
   renderWakeLock();
+  renderPipBtn();
   if (!source) return;
 
   // A live stream is already the same moment for everyone — there is one
@@ -1128,6 +1129,60 @@ async function renderWakeLock() {
 }
 
 document.addEventListener('visibilitychange', renderWakeLock);
+
+// ------------------------------------------------------ picture in picture
+
+/**
+ * Float the film over other apps and tabs, so replying to a message mid-film
+ * no longer means losing the picture. It is the same <video>, so it stays in
+ * sync and voices carry on. Only a video of ours can float: YouTube's player
+ * lives inside someone else's frame, and the test clock has no picture. Most
+ * browsers have the standard call; an iPhone before it has WebKit's own.
+ */
+const stageVideo = () => el('stage').querySelector('video');
+
+function pipSupported(video) {
+  if (!video || video.disablePictureInPicture) return false;
+  if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') return true;
+  return video.webkitSupportsPresentationMode?.('picture-in-picture') === true;
+}
+
+function inPip(video) {
+  return (!!video && document.pictureInPictureElement === video) || video?.webkitPresentationMode === 'picture-in-picture';
+}
+
+// Every tick, so it follows the source without every loader having to call
+// it. Writes only on a change.
+function renderPipBtn() {
+  const video = stageVideo();
+  const b = el('pipBtn');
+  const hide = !pipSupported(video);
+  const label = inPip(video) ? 'Back to page' : 'Pop out';
+  if (b.hidden !== hide) b.hidden = hide;
+  if (b.textContent !== label) b.textContent = label;
+}
+
+el('pipBtn').addEventListener('click', async () => {
+  const video = stageVideo();
+  if (!video) return;
+  try {
+    if (inPip(video)) {
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else video.webkitSetPresentationMode('inline');
+    } else if (document.pictureInPictureEnabled && video.requestPictureInPicture) {
+      await video.requestPictureInPicture();
+    } else {
+      video.webkitSetPresentationMode('picture-in-picture');
+    }
+  } catch {}
+  renderPipBtn();
+});
+
+// The window's own close button leaves picture in picture without a click
+// here. These events do not bubble, so listen in the capture phase.
+for (const type of ['enterpictureinpicture', 'leavepictureinpicture', 'webkitpresentationmodechanged']) {
+  document.addEventListener(type, renderPipBtn, true);
+}
 
 // ------------------------------------------------------------- more sheet
 
